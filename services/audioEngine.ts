@@ -155,6 +155,8 @@ class AudioEngine {
 
       // --- KICK Logic ---
       let kickTriggered = false;
+      let snareTriggered = false; // Track if snare was already triggered
+
       if (e < ENERGY_THRESHOLD_GROOVE) {
         // Idle: Kick on 1
         if (beat === 0 && safeSixteenth === 0) {
@@ -173,8 +175,11 @@ class AudioEngine {
           this.kick?.triggerAttackRelease("C1", "8n", time, 1.2);
           kickTriggered = true;
         }
-        // Extra ghost snare at peak
-        if (safeSixteenth === 0) this.snare?.triggerAttackRelease("32n", time, 0.2);
+        // Extra ghost snare at peak (add tiny offset to avoid conflict)
+        if (safeSixteenth === 0) {
+          this.snare?.triggerAttackRelease("32n", time + 0.001, 0.2);
+          snareTriggered = true;
+        }
       }
 
       // --- SIDECHAIN Logic ---
@@ -196,16 +201,21 @@ class AudioEngine {
         if (safeSixteenth === 2) this.bass?.triggerAttackRelease(currentRoot, "8n", time);
       } else {
         // Idle: Long bass
-        if (beat === 0 && safeSixteenth === 0) this.bass?.triggerAttackRelease(currentRoot, "1n", time);
+        if (beat === 0 && safeSixteenth === 0) {
+          // Add tiny offset to avoid conflict with kick
+          this.bass?.triggerAttackRelease(currentRoot, "1n", time + 0.002);
+        }
       }
 
       // --- Rhythm Helpers ---
       if (safeSixteenth % 2 === 0) this.hihat?.triggerAttackRelease("16n", time);
       // Extra hats in building/peak
-      if (e > ENERGY_THRESHOLD_BUILDING && safeSixteenth % 2 !== 0) this.hihat?.triggerAttackRelease("32n", time, 0.4);
+      if (e > ENERGY_THRESHOLD_BUILDING && safeSixteenth % 2 !== 0) {
+        this.hihat?.triggerAttackRelease("32n", time, 0.4);
+      }
 
-      // Snare on 2 and 4
-      if (e > 0.5 && (beat === 1 || beat === 3) && safeSixteenth === 0) {
+      // Snare on 2 and 4 (only if not already triggered as ghost snare)
+      if (!snareTriggered && e > 0.5 && (beat === 1 || beat === 3) && safeSixteenth === 0) {
         this.snare?.triggerAttackRelease("8n", time);
       }
     }, "16n");
@@ -270,6 +280,9 @@ class AudioEngine {
     const currentScale = SCALES[Math.floor(bar / 4) % SCALES.length];
     const e = this.currentEnergy;
 
+    // *** FIX: Calculate trigger time ONCE at the start ***
+    const triggerTime = Tone.Transport.nextSubdivision("16n");
+
     // Determine notes based on Energy Stage
 
     let notes: string[] = [];
@@ -304,8 +317,7 @@ class AudioEngine {
       notes = [note + "4"]; // Octave 4
       dur = "16n";
 
-      // Trigger Bell Layer (Glassy texture) - sync with main lead timing
-      const triggerTime = Tone.Transport.nextSubdivision("16n");
+      // Trigger Bell Layer (Glassy texture) - use shared triggerTime
       this.bellLayer?.triggerAttackRelease(note + "5", "16n", triggerTime);
     }
     // --- STAGE 3 & 4: PEAK & ULTRA (> 0.75) ---
@@ -320,13 +332,10 @@ class AudioEngine {
       notes = [rootNote, fifth];
       dur = "16n";
 
-      // Trigger Layers with synchronized timing
-      const triggerTime = Tone.Transport.nextSubdivision("16n");
-
-      // Bell adds high sparkle
+      // Bell adds high sparkle - use shared triggerTime
       this.bellLayer?.triggerAttackRelease([rootNote.replace("4", "5"), fifth.replace("4", "5")], "16n", triggerTime);
 
-      // FM adds metallic bite
+      // FM adds metallic bite - use shared triggerTime
       if (e > ENERGY_THRESHOLD_ULTRA) {
         // Chaos chords at ultra
         const third = Tone.Frequency(rootNote).transpose(4).toNote();
@@ -337,8 +346,7 @@ class AudioEngine {
     }
 
     // Main lead uses the same quantized timing
-    const mainTriggerTime = Tone.Transport.nextSubdivision("16n");
-    this.lead.triggerAttackRelease(notes, dur, mainTriggerTime);
+    this.lead.triggerAttackRelease(notes, dur, triggerTime);
   }
 
   public start() { if (Tone.Transport.state !== 'started') Tone.Transport.start(); }
