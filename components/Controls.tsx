@@ -4,12 +4,34 @@ interface ControlsProps {
   isPlaying: boolean;
   onToggle: () => void;
   energy: number;
+  stage: string;
 }
 
-const Controls: React.FC<ControlsProps> = ({ isPlaying, onToggle, energy }) => {
+// Stage display names (Chinese + English)
+const STAGE_LABELS: Record<string, { cn: string; en: string }> = {
+  idle: { cn: '静谧脉动', en: 'Idle' },
+  awakening: { cn: '苏醒', en: 'Awakening' },
+  groove: { cn: '律动', en: 'Groove' },
+  flow: { cn: '心流', en: 'Flow' },
+  euphoria: { cn: '狂喜', en: 'Euphoria' }
+};
+
+// Stage colors (gradient from calm to intense)
+const STAGE_COLORS: Record<string, string> = {
+  idle: '#3b82f6',       // Blue
+  awakening: '#06b6d4',  // Cyan
+  groove: '#a855f7',     // Purple
+  flow: '#ec4899',       // Pink
+  euphoria: '#ef4444'    // Red
+};
+
+const Controls: React.FC<ControlsProps> = ({ isPlaying, onToggle, energy, stage }) => {
+  const stageInfo = STAGE_LABELS[stage] || STAGE_LABELS.idle;
+  const stageColor = STAGE_COLORS[stage] || STAGE_COLORS.idle;
+
   return (
     <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-8 z-10">
-      
+
       {/* Top Header */}
       <div className="flex justify-between items-start">
         <div>
@@ -18,9 +40,9 @@ const Controls: React.FC<ControlsProps> = ({ isPlaying, onToggle, energy }) => {
             Type anywhere to flow. No wrong notes. Keep the energy alive.
           </p>
         </div>
-        
-        {/* Play/Pause Button - Pointer events re-enabled for button */}
-        <button 
+
+        {/* Play/Pause Button */}
+        <button
           onClick={onToggle}
           className="pointer-events-auto bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white px-6 py-2 rounded-full transition-all active:scale-95 font-semibold"
         >
@@ -28,37 +50,73 @@ const Controls: React.FC<ControlsProps> = ({ isPlaying, onToggle, energy }) => {
         </button>
       </div>
 
-      {/* Center - Call to Action (Only when paused or idle) */}
+      {/* Center - Call to Action (Only when paused) */}
       {!isPlaying && (
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
-          <button 
-             onClick={onToggle}
-             className="pointer-events-auto group relative flex items-center justify-center"
+          <button
+            onClick={onToggle}
+            className="pointer-events-auto group relative flex items-center justify-center"
           >
-             <div className="absolute inset-0 bg-purple-600 rounded-full blur-xl opacity-40 group-hover:opacity-60 transition-opacity animate-pulse"></div>
-             <div className="relative bg-white text-black w-24 h-24 rounded-full flex items-center justify-center font-bold text-xl shadow-xl hover:scale-105 transition-transform">
-               PLAY
-             </div>
+            <div className="absolute inset-0 bg-purple-600 rounded-full blur-xl opacity-40 group-hover:opacity-60 transition-opacity animate-pulse"></div>
+            <div className="relative bg-white text-black w-24 h-24 rounded-full flex items-center justify-center font-bold text-xl shadow-xl hover:scale-105 transition-transform">
+              PLAY
+            </div>
           </button>
         </div>
       )}
 
-      {/* Bottom - Energy Meter */}
-      <div className="w-full max-w-md mx-auto">
+      {/* Bottom - Energy Meter with 5 Stages */}
+      <div className="w-full max-w-lg mx-auto">
+
+        {/* Current Stage Display */}
+        {isPlaying && (
+          <div className="text-center mb-4">
+            <span
+              className="text-2xl font-bold transition-colors duration-300"
+              style={{ color: stageColor }}
+            >
+              {stageInfo.cn}
+            </span>
+            <span className="text-white/40 text-sm ml-2">
+              {stageInfo.en}
+            </span>
+          </div>
+        )}
+
+        {/* Stage Labels */}
         <div className="flex justify-between text-xs text-white/50 mb-2 uppercase tracking-widest">
-          <span>Idle</span>
-          <span>Groove</span>
-          <span>Flow</span>
+          <span style={{ color: stage === 'idle' ? STAGE_COLORS.idle : undefined }}>Idle</span>
+          <span style={{ color: stage === 'awakening' ? STAGE_COLORS.awakening : undefined }}>Awaken</span>
+          <span style={{ color: stage === 'groove' ? STAGE_COLORS.groove : undefined }}>Groove</span>
+          <span style={{ color: stage === 'flow' ? STAGE_COLORS.flow : undefined }}>Flow</span>
+          <span style={{ color: stage === 'euphoria' ? STAGE_COLORS.euphoria : undefined }}>Euphoria</span>
         </div>
-        <div className="h-2 bg-white/10 rounded-full overflow-hidden backdrop-blur-sm">
-          <div 
-            className="h-full transition-all duration-100 ease-linear rounded-full"
-            style={{ 
+
+        {/* Energy Bar */}
+        <div className="h-3 bg-white/10 rounded-full overflow-hidden backdrop-blur-sm relative">
+          {/* Stage markers */}
+          <div className="absolute inset-0 flex">
+            <div className="w-1/5 border-r border-white/10"></div>
+            <div className="w-1/5 border-r border-white/10"></div>
+            <div className="w-1/5 border-r border-white/10"></div>
+            <div className="w-1/5 border-r border-white/10"></div>
+            <div className="w-1/5"></div>
+          </div>
+
+          {/* Progress fill */}
+          <div
+            className="h-full transition-all duration-100 ease-linear rounded-full relative z-10"
+            style={{
               width: `${Math.min(energy * 100, 100)}%`,
-              backgroundColor: energy > 0.7 ? '#f43f5e' : energy > 0.3 ? '#a855f7' : '#3b82f6',
-              boxShadow: `0 0 10px ${energy > 0.7 ? '#f43f5e' : energy > 0.3 ? '#a855f7' : '#3b82f6'}`
+              background: `linear-gradient(90deg, ${STAGE_COLORS.idle}, ${STAGE_COLORS.awakening}, ${STAGE_COLORS.groove}, ${STAGE_COLORS.flow}, ${STAGE_COLORS.euphoria})`,
+              boxShadow: `0 0 15px ${stageColor}, 0 0 30px ${stageColor}40`
             }}
           />
+        </div>
+
+        {/* Energy percentage */}
+        <div className="text-center mt-2 text-white/40 text-xs">
+          {Math.round(energy * 100)}%
         </div>
       </div>
 
