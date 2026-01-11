@@ -118,7 +118,7 @@ function App() {
       if (isSparkle) {
         boost += SPARKLE_ENERGY_BONUS;
         setSparkleSignal(prev => prev + 1);
-        audioEngine.triggerSparkle(); // Trigger sparkle sound
+        // audioEngine.triggerSparkle(); // DISABLED: Sparkle sound
       }
 
       // Boost Energy
