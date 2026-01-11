@@ -89,27 +89,66 @@ export function startRhythmLoop(
         }
 
         // ================================
-        // KICK - Only on beat (sixteenth === 0)
+        // KICK - Density evolves with energy
+        // idle: every 2 beats (half-time)
+        // awakening/groove: every beat (standard 4/4)
+        // flow: every beat
+        // euphoria: every beat + extra hits (double-time feel)
         // ================================
-        if (sixteenth === 0 && time > lastKick + MIN_INTERVAL.KICK) {
-            const velocity = stage === 'idle' ? 0.5
-                : stage === 'awakening' ? 0.65
-                    : stage === 'groove' ? 0.8
-                        : stage === 'flow' ? 0.9
-                            : 1.0;
+        if (time > lastKick + MIN_INTERVAL.KICK) {
+            let shouldKick = false;
+            let kickVelocity = 0.7;
 
-            instruments.kick.triggerAttackRelease('C1', '8n', time, velocity);
-            lastKick = time;
+            if (stage === 'idle') {
+                // Half-time: kick only on beat 0 and 2
+                if (sixteenth === 0 && (beat === 0 || beat === 2)) {
+                    shouldKick = true;
+                    kickVelocity = 0.5;
+                }
+            } else if (stage === 'awakening') {
+                // Standard 4/4
+                if (sixteenth === 0) {
+                    shouldKick = true;
+                    kickVelocity = 0.65;
+                }
+            } else if (stage === 'groove') {
+                // Standard 4/4
+                if (sixteenth === 0) {
+                    shouldKick = true;
+                    kickVelocity = 0.8;
+                }
+            } else if (stage === 'flow') {
+                // Standard 4/4 with occasional ghost kick
+                if (sixteenth === 0) {
+                    shouldKick = true;
+                    kickVelocity = 0.9;
+                } else if (sixteenth === 2 && beat % 2 === 1) {
+                    // Ghost kick on offbeat of beats 1 and 3
+                    shouldKick = true;
+                    kickVelocity = 0.4;
+                }
+            } else if (stage === 'euphoria') {
+                // Double-time: kick on 1 and 3 of each beat
+                if (sixteenth === 0 || sixteenth === 2) {
+                    shouldKick = true;
+                    kickVelocity = sixteenth === 0 ? 1.0 : 0.7;
+                }
+            }
 
-            // Sidechain (only if not idle)
-            if (stage !== 'idle') {
-                const depth = stage === 'awakening' ? -6
-                    : stage === 'groove' ? -12
-                        : stage === 'flow' ? -20
-                            : -30;
-                sidechainNode.volume.cancelScheduledValues(time);
-                sidechainNode.volume.setValueAtTime(depth, time);
-                sidechainNode.volume.setTargetAtTime(0, time, 0.06);
+            if (shouldKick) {
+                instruments.kick.triggerAttackRelease('C1', '8n', time, kickVelocity);
+                lastKick = time;
+
+                // Sidechain (only if not idle)
+                if (stage !== 'idle') {
+                    const depth = stage === 'awakening' ? -6
+                        : stage === 'groove' ? -12
+                            : stage === 'flow' ? -20
+                                : -30;
+                    sidechainNode.volume.cancelScheduledValues(time);
+                    sidechainNode.volume.setValueAtTime(depth, time);
+                    sidechainNode.volume.setTargetAtTime(0, time, 0.06);
+                }
             }
         }
 
@@ -158,25 +197,52 @@ export function startRhythmLoop(
         }
 
         // ================================
-        // HI-HAT - Very sparse, only on even 16ths
+        // HI-HAT - Density evolves with energy
+        // idle: every beat (4 hits/bar)
+        // awakening: every 2 sixteenths (8 hits/bar)
+        // groove: every 2 sixteenths (8 hits/bar)
+        // flow/euphoria: every sixteenth (16 hits/bar)
         // ================================
-        if (sixteenth % 2 === 0 && time > lastHihat + MIN_INTERVAL.HIHAT) {
+        if (time > lastHihat + MIN_INTERVAL.HIHAT) {
+            let shouldHihat = false;
             let hihatVelocity = 0;
+            let hihatDuration = '32n';
 
             if (stage === 'idle') {
-                hihatVelocity = 0.1;
+                // Only on beats (very sparse)
+                if (sixteenth === 0) {
+                    shouldHihat = true;
+                    hihatVelocity = 0.15;
+                }
             } else if (stage === 'awakening') {
-                hihatVelocity = 0.25;
+                // Every 2 sixteenths
+                if (sixteenth % 2 === 0) {
+                    shouldHihat = true;
+                    hihatVelocity = 0.3;
+                }
             } else if (stage === 'groove') {
-                hihatVelocity = 0.4;
+                // Every 2 sixteenths
+                if (sixteenth % 2 === 0) {
+                    shouldHihat = true;
+                    hihatVelocity = 0.45;
+                }
             } else if (stage === 'flow') {
-                hihatVelocity = 0.5;
-            } else {
-                hihatVelocity = 0.6;
+                // Every sixteenth (full speed)
+                shouldHihat = true;
+                hihatVelocity = sixteenth % 2 === 0 ? 0.55 : 0.35; // Accent on beat
+            } else if (stage === 'euphoria') {
+                // Every sixteenth, louder
+                shouldHihat = true;
+                hihatVelocity = sixteenth % 2 === 0 ? 0.7 : 0.45;
+                // Open hi-hat on 2 and 4
+                if ((beat === 1 || beat === 3) && sixteenth === 0) {
+                    hihatDuration = '8n';
+                    hihatVelocity = 0.8;
+                }
             }
 
-            if (hihatVelocity > 0) {
-                instruments.hihat.triggerAttackRelease('32n', time + 0.004, hihatVelocity);
+            if (shouldHihat && hihatVelocity > 0) {
+                instruments.hihat.triggerAttackRelease(hihatDuration, time + 0.004, hihatVelocity);
                 lastHihat = time;
             }
         }
