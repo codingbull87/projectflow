@@ -5,6 +5,7 @@ import { Effects, createEffects, updateEffectsForEnergy, updateRhythmVolumes } f
 import { startRhythmLoop } from './audio/rhythm';
 import { triggerQuantizedNote } from './audio/melody';
 import { SparkleSystem, createSparkleSystem, triggerSparkle } from './audio/sparkle';
+import { RiserSystem, createRiserSystem, triggerRiser, triggerImpact } from './audio/riser';
 import { getStyleDirector, resetStyleDirector, StyleDirector } from './audio/styleDirector';
 import { TRANSITION_CONFIG } from './audio/styles';
 
@@ -24,6 +25,7 @@ class AudioEngine {
   private instruments: Instruments | null = null;
   private effects: Effects | null = null;
   private sparkle: SparkleSystem | null = null;
+  private riser: RiserSystem | null = null;
   private styleDirector: StyleDirector | null = null;
   private isInitialized = false;
   private currentEnergy = 0;
@@ -53,12 +55,15 @@ class AudioEngine {
     // 3. Create Sparkle System (Dopamine)
     this.sparkle = createSparkleSystem(limiter);
 
-    // 4. Initialize Style Director
+    // 4. Create Riser System (Build-up anticipation)
+    this.riser = createRiserSystem(limiter);
+
+    // 5. Initialize Style Director
     resetStyleDirector(); // Reset any previous state
     this.styleDirector = getStyleDirector();
     this.setupStyleDirectorCallbacks();
 
-    // 5. Wiring Connections
+    // 6. Wiring Connections
     // Lead Layers -> Lead Filter Chain
     this.instruments.lead.connect(this.effects.leadFilter);
     this.instruments.subLayer.connect(this.effects.leadFilter);
@@ -73,7 +78,7 @@ class AudioEngine {
     this.instruments.hihat.connect(this.instruments.hihatVolume).connect(this.effects.reverb);
     this.instruments.snare.connect(this.instruments.snareVolume).connect(this.effects.reverb);
 
-    // 6. Setup Transport & Rhythm Loop
+    // 7. Setup Transport & Rhythm Loop
     Tone.Transport.bpm.value = BPM;
 
     // Start the rhythm director (Entrainment - continuous "heartbeat")
@@ -83,6 +88,9 @@ class AudioEngine {
       this.sparkle,
       () => this.currentEnergy
     );
+
+    // 8. Apply initial style to instruments
+    this.styleDirector.applyStyleToInstruments(this.instruments, Tone.now());
 
     this.isInitialized = true;
     console.log('[AudioEngine] Initialized with style:', this.styleDirector.getCurrentStyle().name);
@@ -94,10 +102,16 @@ class AudioEngine {
   private setupStyleDirectorCallbacks() {
     if (!this.styleDirector) return;
 
-    // When a transition starts, trigger "fake drop" effect
+    // When a transition starts, trigger "fake drop" effect + RISER
     this.styleDirector.setOnTransitionStart((fromStyle, toStyle) => {
       console.log(`[AudioEngine] Transition starting: ${fromStyle.name} → ${toStyle.name}`);
       this.onTransitionCallback?.(true, 0);
+
+      // Trigger riser sound for anticipation!
+      if (this.riser) {
+        const riserDuration = (TRANSITION_CONFIG.transitionDurationBars * 60) / BPM * 2; // bars to seconds
+        triggerRiser(this.riser, Math.min(riserDuration, 2.5), 'normal');
+      }
     });
 
     // When transition completes
@@ -105,6 +119,11 @@ class AudioEngine {
       console.log(`[AudioEngine] Now playing: ${newStyle.name}`);
       this.onTransitionCallback?.(false, 1);
       this.onStyleChangeCallback?.(newStyle.name);
+
+      // Trigger impact sound for "drop" effect
+      if (this.riser) {
+        triggerImpact(this.riser);
+      }
 
       // Apply new style's parameters to effects
       if (this.effects) {

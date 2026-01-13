@@ -258,17 +258,35 @@ export class StyleDirector {
 
     /**
      * Apply current style parameters to instruments
+     * Now includes Envelope parameters for unique "feel" per style
      */
     public applyStyleToInstruments(instruments: Instruments, now: number): void {
         const waveform = this.getInterpolatedValue('leadWaveform');
         const spread = this.getInterpolatedValue('leadSpread');
+        const envelope = this.getInterpolatedValue('leadEnvelope');
 
-        // Apply lead synth parameters
+        // Apply lead synth parameters including envelope
         try {
             instruments.lead.set({
                 oscillator: {
                     type: waveform as any,
                     spread: spread
+                },
+                envelope: {
+                    attack: envelope.attack,
+                    decay: envelope.decay,
+                    sustain: envelope.sustain,
+                    release: envelope.release
+                }
+            });
+
+            // Also apply to subLayer for consistent feel
+            instruments.subLayer.set({
+                envelope: {
+                    attack: envelope.attack * 1.2,  // Slightly slower attack for sub
+                    decay: envelope.decay * 1.5,
+                    sustain: envelope.sustain * 0.8,
+                    release: envelope.release * 1.2
                 }
             });
         } catch (e) {

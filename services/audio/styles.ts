@@ -33,6 +33,15 @@ export interface Style {
     filterCutoff: number;           // Base filter frequency (200-8000)
     filterResonance: number;        // Q factor (0-10)
 
+    // === Lead Envelope (Note Shape) ===
+    // Each style has unique "feel" - plucky, stabby, soft, sharp
+    leadEnvelope: {
+        attack: number;             // 0.001 (instant) to 0.3 (soft)
+        decay: number;              // 0.05 to 0.5
+        sustain: number;            // 0 (stab) to 0.5 (pad-like)
+        release: number;            // 0.1 to 0.5
+    };
+
     // === Rhythm Feel ===
     kickStyle: 'soft' | 'punchy' | 'hard';
     bassOctave: number;             // 1 or 2
@@ -86,6 +95,14 @@ const DISCO_HOUSE: Style = {
     filterCutoff: 2000,
     filterResonance: 2,
 
+    // Plucky, bouncy - invites grooving
+    leadEnvelope: {
+        attack: 0.01,
+        decay: 0.15,
+        sustain: 0.2,
+        release: 0.25
+    },
+
     // Classic 4-on-the-floor
     patterns: {
         kick: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
@@ -132,6 +149,14 @@ const UPLIFTING_TRANCE: Style = {
     filterCutoff: 3500,
     filterResonance: 4,
 
+    // Sharp stab - instant attack, no sustain, euphoric
+    leadEnvelope: {
+        attack: 0.001,
+        decay: 0.08,
+        sustain: 0,
+        release: 0.15
+    },
+
     // Driving, energetic
     patterns: {
         kick: [1, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 1], // With ghost kicks
@@ -177,6 +202,14 @@ const DEEP_HOUSE: Style = {
     leadSpread: 15,
     filterCutoff: 1200,
     filterResonance: 6,
+
+    // Soft, dreamy - slow attack, pad-like
+    leadEnvelope: {
+        attack: 0.08,
+        decay: 0.3,
+        sustain: 0.4,
+        release: 0.5
+    },
 
     // Syncopated, minimalist
     patterns: {
@@ -225,6 +258,14 @@ const NU_DISCO: Style = {
     filterCutoff: 4000,  // Bright!
     filterResonance: 3,
 
+    // Funky stab - quick attack, short decay, groovy
+    leadEnvelope: {
+        attack: 0.005,
+        decay: 0.1,
+        sustain: 0.1,
+        release: 0.2
+    },
+
     // Funky, groovy offbeats
     patterns: {
         kick: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0], // Solid 4-on-the-floor
@@ -271,6 +312,14 @@ const TECH_HOUSE: Style = {
     leadSpread: 10,  // Tighter, more focused
     filterCutoff: 800,  // Dark, filtered
     filterResonance: 8,  // High resonance for acid-y feel
+
+    // Sharp blade - instant attack, zero sustain, clinical
+    leadEnvelope: {
+        attack: 0.001,
+        decay: 0.05,
+        sustain: 0,
+        release: 0.1
+    },
 
     // Minimal, hypnotic
     patterns: {
