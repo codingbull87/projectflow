@@ -281,11 +281,21 @@ export class StyleDirector {
      */
     public applyStyleToEffects(effects: Effects, now: number): void {
         const reverbWet = this.getInterpolatedValue('reverbWet');
+        const reverbDecay = this.getInterpolatedValue('reverbDecay');
+        const delayFeedback = this.getInterpolatedValue('delayFeedback');
+        const delayTime = this.getInterpolatedValue('delayTime');
         const filterCutoff = this.getInterpolatedValue('filterCutoff');
+        const filterQ = this.getInterpolatedValue('filterResonance');
 
         // Smooth transitions using rampTo
         effects.reverb.wet.rampTo(reverbWet, 2);
+        effects.reverb.decay = reverbDecay; // Decay is not AudioParam, set directly
+
+        effects.delay.feedback.rampTo(delayFeedback, 2);
+        effects.delay.delayTime.value = delayTime; // Time is tricky to ramp, set directly
+
         effects.leadFilter.frequency.rampTo(filterCutoff, 1);
+        effects.leadFilter.Q.rampTo(filterQ, 1);
     }
 
     // ================================

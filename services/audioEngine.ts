@@ -216,6 +216,19 @@ class AudioEngine {
   }
 
   /**
+   * Get current style hue shift for visuals
+   */
+  public getCurrentHueShift(): number {
+    return this.styleDirector?.getCurrentStyle().hueShift || 0;
+  }
+
+  public getVisualParameters() {
+    return {
+      hueShift: this.styleDirector?.getInterpolatedValue('hueShift') || 0
+    };
+  }
+
+  /**
    * Check if currently in a style transition
    */
   public isInTransition(): boolean {

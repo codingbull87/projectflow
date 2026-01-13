@@ -60,6 +60,7 @@ function App() {
   const [currentStyleName, setCurrentStyleName] = useState('Disco House');
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [transitionProgress, setTransitionProgress] = useState(0);
+  const [hueShift, setHueShift] = useState(0);
 
   const energyRef = useRef(0);
   const requestRef = useRef<number | null>(null);
@@ -101,8 +102,11 @@ function App() {
       audioEngine.updateEnergy(energyRef.current);
     }
 
-    // Update transition state from audio engine
+    // Update visual parameters from audio engine (interpolated)
     if (isPlaying) {
+      setHueShift(audioEngine.getVisualParameters().hueShift);
+
+      // Update transition state from audio engine
       const transitioning = audioEngine.isInTransition();
       if (transitioning !== isTransitioning) {
         setIsTransitioning(transitioning);
@@ -169,6 +173,7 @@ function App() {
         energy={energy}
         triggerSignal={triggerCount}
         sparkleSignal={sparkleSignal}
+        hueShift={hueShift}
       />
       <Controls
         isPlaying={isPlaying}

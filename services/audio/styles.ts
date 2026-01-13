@@ -14,37 +14,45 @@
 export interface Style {
     id: string;
     name: string;
-    
+
     // === Harmonic Parameters ===
     key: string;                    // Root note: 'A', 'E', 'D'
     mode: 'minor' | 'major';        // Scale mode
     scale: string[];                // Available notes in scale
-    
+
     // Chord progression (4 chords, each lasting 4 bars)
     chordProgression: {
         name: string;               // 'Am', 'F', etc.
         root: string;               // Bass note with octave: 'A2'
         notes: string[];            // Chord tones: ['A', 'C', 'E']
     }[];
-    
+
     // === Timbre Parameters ===
     leadWaveform: 'fatsquare' | 'fatsawtooth' | 'triangle' | 'sine';
     leadSpread: number;             // Detuning spread (0-50)
     filterCutoff: number;           // Base filter frequency (200-8000)
     filterResonance: number;        // Q factor (0-10)
-    
+
     // === Rhythm Feel ===
     kickStyle: 'soft' | 'punchy' | 'hard';
     bassOctave: number;             // 1 or 2
     hihatStyle: 'closed' | 'open' | 'mixed';
     swingAmount: number;            // 0 = straight, 0.1 = subtle swing
-    
+
+    // === Rhythm Patterns (16 steps) ===
+    patterns: {
+        kick: number[];      // 1 = trigger, 0 = silent
+        bass: number[];      // 1 = trigger
+        hihat: number[];     // 0-1 velocity
+        snare: number[];     // 1 = trigger
+    };
+
     // === Atmosphere ===
     reverbDecay: number;            // 1-5 seconds
     reverbWet: number;              // 0-1
     delayTime: string;              // '8n', '4n', etc.
     delayFeedback: number;          // 0-0.8
-    
+
     // === Color Hint (for visuals) ===
     hueShift: number;               // -30 to +30 from base color
 }
@@ -61,33 +69,41 @@ export interface Style {
 const DISCO_HOUSE: Style = {
     id: 'disco',
     name: 'Disco House',
-    
+
     key: 'A',
     mode: 'minor',
     scale: ['A', 'B', 'C', 'D', 'E', 'F', 'G'],
-    
+
     chordProgression: [
         { name: 'Am', root: 'A1', notes: ['A', 'C', 'E'] },
-        { name: 'F',  root: 'F1', notes: ['F', 'A', 'C'] },
-        { name: 'C',  root: 'C2', notes: ['C', 'E', 'G'] },
-        { name: 'G',  root: 'G1', notes: ['G', 'B', 'D'] }
+        { name: 'F', root: 'F1', notes: ['F', 'A', 'C'] },
+        { name: 'C', root: 'C2', notes: ['C', 'E', 'G'] },
+        { name: 'G', root: 'G1', notes: ['G', 'B', 'D'] }
     ],
-    
+
     leadWaveform: 'fatsquare',
     leadSpread: 25,
     filterCutoff: 2000,
     filterResonance: 2,
-    
+
+    // Classic 4-on-the-floor
+    patterns: {
+        kick: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+        bass: [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0], // Offbeat bass
+        hihat: [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1], // Offbeat open hat feel
+        snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]  // Standard 2 & 4
+    },
+
     kickStyle: 'punchy',
     bassOctave: 1,
     hihatStyle: 'closed',
     swingAmount: 0.02,
-    
+
     reverbDecay: 2.5,
     reverbWet: 0.25,
     delayTime: '8n',
     delayFeedback: 0.2,
-    
+
     hueShift: 0
 };
 
@@ -99,33 +115,41 @@ const DISCO_HOUSE: Style = {
 const UPLIFTING_TRANCE: Style = {
     id: 'trance',
     name: 'Uplifting Trance',
-    
+
     key: 'E',
     mode: 'minor',
     scale: ['E', 'F#', 'G', 'A', 'B', 'C', 'D'],
-    
+
     chordProgression: [
         { name: 'Em', root: 'E1', notes: ['E', 'G', 'B'] },
-        { name: 'C',  root: 'C2', notes: ['C', 'E', 'G'] },
-        { name: 'G',  root: 'G1', notes: ['G', 'B', 'D'] },
-        { name: 'D',  root: 'D2', notes: ['D', 'F#', 'A'] }
+        { name: 'C', root: 'C2', notes: ['C', 'E', 'G'] },
+        { name: 'G', root: 'G1', notes: ['G', 'B', 'D'] },
+        { name: 'D', root: 'D2', notes: ['D', 'F#', 'A'] }
     ],
-    
+
     leadWaveform: 'fatsawtooth',
     leadSpread: 35,
     filterCutoff: 3500,
     filterResonance: 4,
-    
+
+    // Driving, energetic
+    patterns: {
+        kick: [1, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 1], // With ghost kicks
+        bass: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], // Rolling 16ths
+        hihat: [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0], // 8ths
+        snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]
+    },
+
     kickStyle: 'hard',
     bassOctave: 1,
     hihatStyle: 'open',
     swingAmount: 0,
-    
+
     reverbDecay: 3.5,
     reverbWet: 0.35,
     delayTime: '4n',
     delayFeedback: 0.35,
-    
+
     hueShift: -40  // Shift towards cyan/blue
 };
 
@@ -137,33 +161,41 @@ const UPLIFTING_TRANCE: Style = {
 const DEEP_HOUSE: Style = {
     id: 'deep',
     name: 'Deep House',
-    
+
     key: 'D',
     mode: 'minor',
     scale: ['D', 'E', 'F', 'G', 'A', 'Bb', 'C'],
-    
+
     chordProgression: [
         { name: 'Dm', root: 'D1', notes: ['D', 'F', 'A'] },
         { name: 'Bb', root: 'Bb1', notes: ['Bb', 'D', 'F'] },
-        { name: 'F',  root: 'F1', notes: ['F', 'A', 'C'] },
-        { name: 'C',  root: 'C2', notes: ['C', 'E', 'G'] }
+        { name: 'F', root: 'F1', notes: ['F', 'A', 'C'] },
+        { name: 'C', root: 'C2', notes: ['C', 'E', 'G'] }
     ],
-    
+
     leadWaveform: 'triangle',
     leadSpread: 15,
     filterCutoff: 1200,
     filterResonance: 6,
-    
+
+    // Syncopated, minimalist
+    patterns: {
+        kick: [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0], // Broken beat
+        bass: [1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1], // Sparse, syncopated
+        hihat: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], // 16th shaker feel
+        snare: [0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0]  // Ghost snares
+    },
+
     kickStyle: 'soft',
     bassOctave: 1,
     hihatStyle: 'closed',
     swingAmount: 0.05,
-    
+
     reverbDecay: 4,
     reverbWet: 0.4,
     delayTime: '8n.',
     delayFeedback: 0.45,
-    
+
     hueShift: 30  // Shift towards warm purple/magenta
 };
 
@@ -194,13 +226,13 @@ export function getRandomNextStyle(currentId: string): Style {
 export const TRANSITION_CONFIG = {
     // Minimum bars before a transition can occur
     minBarsBeforeTransition: 32,  // ~60 seconds at 128 BPM
-    
+
     // Maximum bars before forced transition
     maxBarsBeforeTransition: 64,  // ~2 minutes
-    
+
     // Transition duration in bars
     transitionDurationBars: 4,    // 8 seconds crossfade
-    
+
     // Energy drop during transition
     energyDropTarget: 0.55,       // Drop to mid-Flow
     energyDropDuration: 2000,     // 2 seconds to drop

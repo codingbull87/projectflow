@@ -40,6 +40,7 @@ class BeatCounter {
     get bar(): number { return Math.floor(this.sixteenthCount / 16); }
     get beat(): number { return Math.floor((this.sixteenthCount % 16) / 4); }
     get sixteenth(): number { return this.sixteenthCount % 4; }
+    get currentStep(): number { return this.sixteenthCount % 16; } // 0-15 for pattern indexing
 
     // Now gets chord from StyleDirector instead of hardcoded array
     get currentRoot(): string {
@@ -109,51 +110,56 @@ export function startRhythmLoop(
         }
 
         // ================================
-        // KICK - Style-aware velocity
+        // RHYTHM PATTERNS (Style-Driven)
         // ================================
-        if (time > lastKick + MIN_INTERVAL.KICK) {
+
+        // Get pattern values for current step (0-15)
+        // We use the 16th note index directly into the style's pattern arrays
+        const stepIndex = counter.currentStep;
+        const kickTrigger = currentStyle.patterns.kick[stepIndex];
+        const bassTrigger = currentStyle.patterns.bass[stepIndex];
+        const hihatTrigger = currentStyle.patterns.hihat[stepIndex];
+        const snareTrigger = currentStyle.patterns.snare[stepIndex];
+
+        // ================================
+        // KICK logic
+        // ================================
+        if (time > lastKick + MIN_INTERVAL.KICK && kickTrigger > 0) {
             let shouldKick = false;
             let kickVelocity = 0.7;
 
-            // Base velocity modifier from style
+            // Base velocity from style settings
             const styleVelocityMod = kickStyle === 'soft' ? 0.8
                 : kickStyle === 'punchy' ? 1.0
-                    : 1.15; // hard
+                    : 1.15;
 
+            // Energy Masking:
+            // Low energy = filter out some pattern hits to keep it sparse
             if (stage === 'idle') {
-                if (sixteenth === 0 && (beat === 0 || beat === 2)) {
+                // Idle: only allow kicks on beats 1 and 3 (index 0, 8)
+                if (stepIndex === 0 || stepIndex === 8) {
                     shouldKick = true;
-                    kickVelocity = 0.5 * styleVelocityMod;
+                    kickVelocity = 0.5;
                 }
             } else if (stage === 'awakening') {
-                if (sixteenth === 0) {
+                // Awakening: allow beats 1, 2, 3, 4 (quarters)
+                if (stepIndex % 4 === 0) {
                     shouldKick = true;
-                    kickVelocity = 0.65 * styleVelocityMod;
+                    kickVelocity = 0.6;
                 }
-            } else if (stage === 'groove') {
-                if (sixteenth === 0) {
-                    shouldKick = true;
-                    kickVelocity = 0.8 * styleVelocityMod;
-                }
-            } else if (stage === 'flow') {
-                if (sixteenth === 0) {
-                    shouldKick = true;
-                    kickVelocity = 0.9 * styleVelocityMod;
-                } else if (sixteenth === 2 && beat % 2 === 1) {
-                    shouldKick = true;
-                    kickVelocity = 0.4 * styleVelocityMod;
-                }
-            } else if (stage === 'euphoria') {
-                if (sixteenth === 0 || sixteenth === 2) {
-                    shouldKick = true;
-                    kickVelocity = (sixteenth === 0 ? 1.0 : 0.7) * styleVelocityMod;
-                }
+            } else {
+                // Groove/Flow/Euphoria: Full pattern
+                shouldKick = true;
+                // Scale velocity with energy
+                kickVelocity = 0.7 + (energy * 0.3);
             }
 
             if (shouldKick) {
-                instruments.kick.triggerAttackRelease('C1', '8n', time, Math.min(1.5, kickVelocity));
+                const finalVel = Math.min(1.5, kickVelocity * styleVelocityMod);
+                instruments.kick.triggerAttackRelease('C1', '8n', time, finalVel);
                 lastKick = time;
 
+                // Sidechain processing
                 if (stage !== 'idle') {
                     const depth = stage === 'awakening' ? -6
                         : stage === 'groove' ? -12
@@ -167,40 +173,33 @@ export function startRhythmLoop(
         }
 
         // ================================
-        // BASS - Uses style's chord root
+        // BASS logic
         // ================================
-        if (time > lastBass + MIN_INTERVAL.BASS) {
+        if (time > lastBass + MIN_INTERVAL.BASS && bassTrigger > 0) {
             let shouldTriggerBass = false;
-            let bassDuration = '4n';
+            let bassDuration = '8n';
             let bassVelocity = 0.6;
-
-            // Adjust bass octave based on style
             const bassRoot = currentRoot;
 
             if (stage === 'idle') {
-                if (beat === 0 && sixteenth === 0) {
+                // Idle: only root notes on bar start
+                if (stepIndex === 0 && beat === 0) {
                     shouldTriggerBass = true;
                     bassDuration = '1n';
                     bassVelocity = 0.5;
                 }
             } else if (stage === 'awakening') {
-                if (beat === 0 && sixteenth === 0) {
+                // Awakening: simplified pattern (only downbeats)
+                if (stepIndex % 4 === 0) {
                     shouldTriggerBass = true;
-                    bassDuration = '2n';
-                    bassVelocity = 0.6;
+                    bassDuration = '4n';
                 }
-            } else if (stage === 'groove' || stage === 'flow') {
-                if (sixteenth === 2) {
-                    shouldTriggerBass = true;
-                    bassDuration = '8n';
-                    bassVelocity = 0.75;
-                }
-            } else if (stage === 'euphoria') {
-                if (sixteenth === 0 || sixteenth === 2) {
-                    shouldTriggerBass = true;
-                    bassDuration = '8n';
-                    bassVelocity = 0.9;
-                }
+            } else {
+                // Full pattern for Groove+
+                shouldTriggerBass = true;
+                bassVelocity = 0.6 + (energy * 0.3);
+                // Adjust duration based on density
+                if (currentStyle.id === 'trance') bassDuration = '16n';
             }
 
             if (shouldTriggerBass) {
@@ -210,58 +209,47 @@ export function startRhythmLoop(
         }
 
         // ================================
-        // HI-HAT - Style-aware density
+        // HI-HAT logic
         // ================================
-        if (time > lastHihat + MIN_INTERVAL.HIHAT) {
+        if (time > lastHihat + MIN_INTERVAL.HIHAT && hihatTrigger > 0) {
             let shouldHihat = false;
-            let hihatVelocity = 0;
+            let hihatVelocity = hihatTrigger; // Use value from pattern (0-1) as base
             let hihatDuration = '32n';
-
             const hihatStyle = currentStyle.hihatStyle;
 
+            // Energy masks density
             if (stage === 'idle') {
-                if (sixteenth === 0) {
-                    shouldHihat = true;
-                    hihatVelocity = 0.15;
-                }
+                if (stepIndex % 4 === 0) shouldHihat = true; // Quarters only
             } else if (stage === 'awakening') {
-                if (sixteenth % 2 === 0) {
-                    shouldHihat = true;
-                    hihatVelocity = 0.3;
-                }
-            } else if (stage === 'groove') {
-                if (sixteenth % 2 === 0) {
-                    shouldHihat = true;
-                    hihatVelocity = 0.45;
-                }
-            } else if (stage === 'flow') {
-                shouldHihat = true;
-                hihatVelocity = sixteenth % 2 === 0 ? 0.55 : 0.35;
-            } else if (stage === 'euphoria') {
-                shouldHihat = true;
-                hihatVelocity = sixteenth % 2 === 0 ? 0.7 : 0.45;
-
-                // Open hi-hat on 2 and 4 (style-dependent)
-                if ((beat === 1 || beat === 3) && sixteenth === 0) {
-                    if (hihatStyle === 'open' || hihatStyle === 'mixed') {
-                        hihatDuration = '8n';
-                        hihatVelocity = 0.8;
-                    }
-                }
+                if (stepIndex % 2 === 0) shouldHihat = true; // 8ths
+            } else {
+                shouldHihat = true; // Full pattern
             }
 
-            if (shouldHihat && hihatVelocity > 0) {
+            if (shouldHihat) {
+                // Add dynamics
+                if (stepIndex % 4 === 0) hihatVelocity += 0.2; // Accent downbeats
+
+                // Style nuances
+                if (hihatStyle === 'open' && (stepIndex === 2 || stepIndex === 10)) {
+                    hihatDuration = '8n'; // Open hat feel
+                }
+
+                // Global energy scaling
+                hihatVelocity = Math.min(1, hihatVelocity * (0.4 + energy * 0.6));
+
                 instruments.hihat.triggerAttackRelease(hihatDuration, time + 0.004, hihatVelocity);
                 lastHihat = time;
             }
         }
 
         // ================================
-        // SNARE - Only on 2 and 4, groove+ only
+        // SNARE logic
         // ================================
-        if ((beat === 1 || beat === 3) && sixteenth === 0 && time > lastSnare + MIN_INTERVAL.SNARE) {
+        if (time > lastSnare + MIN_INTERVAL.SNARE && snareTrigger > 0) {
+            // Snare usually only active from Groove onwards
             if (stage === 'groove' || stage === 'flow' || stage === 'euphoria') {
-                const snareVelocity = stage === 'groove' ? 0.5 : stage === 'flow' ? 0.7 : 0.85;
+                const snareVelocity = 0.5 + (energy * 0.4);
                 instruments.snare.triggerAttackRelease('16n', time + 0.003, snareVelocity);
                 lastSnare = time;
             }

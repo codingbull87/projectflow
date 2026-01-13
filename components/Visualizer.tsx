@@ -18,6 +18,7 @@ interface VisualizerProps {
   energy: number;
   triggerSignal: number;
   sparkleSignal: number;
+  hueShift?: number;
 }
 
 /**
@@ -27,10 +28,11 @@ interface VisualizerProps {
  * Stage colors progression:
  * Idle (Blue) → Awakening (Cyan) → Groove (Purple) → Flow (Pink) → Euphoria (Red)
  */
-const Visualizer: React.FC<VisualizerProps> = ({ energy, triggerSignal, sparkleSignal }) => {
+const Visualizer: React.FC<VisualizerProps> = ({ energy, triggerSignal, sparkleSignal, hueShift = 0 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const p5Instance = useRef<p5 | null>(null);
   const energyRef = useRef(energy);
+  const hueShiftRef = useRef(hueShift);
   const prevSignalRef = useRef(triggerSignal);
   const prevSparkleRef = useRef(sparkleSignal);
 
@@ -42,7 +44,8 @@ const Visualizer: React.FC<VisualizerProps> = ({ energy, triggerSignal, sparkleS
   // Sync props to refs
   useEffect(() => {
     energyRef.current = energy;
-  }, [energy]);
+    hueShiftRef.current = hueShift;
+  }, [energy, hueShift]);
 
   useEffect(() => {
     if (triggerSignal !== prevSignalRef.current) {
@@ -59,13 +62,19 @@ const Visualizer: React.FC<VisualizerProps> = ({ energy, triggerSignal, sparkleS
     }
   }, [sparkleSignal]);
 
-  // Get color for current energy stage
+  // Get color for current energy stage (with hue shift)
   const getStageColor = (e: number) => {
-    if (e >= ENERGY_THRESHOLD_EUPHORIA) return COLOR_EUPHORIA;
-    if (e >= ENERGY_THRESHOLD_FLOW) return COLOR_FLOW;
-    if (e >= ENERGY_THRESHOLD_GROOVE) return COLOR_GROOVE;
-    if (e >= ENERGY_THRESHOLD_AWAKENING) return COLOR_AWAKENING;
-    return COLOR_IDLE;
+    let baseColor = COLOR_IDLE;
+    if (e >= ENERGY_THRESHOLD_EUPHORIA) baseColor = COLOR_EUPHORIA;
+    else if (e >= ENERGY_THRESHOLD_FLOW) baseColor = COLOR_FLOW;
+    else if (e >= ENERGY_THRESHOLD_GROOVE) baseColor = COLOR_GROOVE;
+    else if (e >= ENERGY_THRESHOLD_AWAKENING) baseColor = COLOR_AWAKENING;
+
+    // Apply hue shift
+    return {
+      ...baseColor,
+      h: (baseColor.h + (hueShiftRef.current || 0) + 360) % 360
+    };
   };
 
   // Interpolate between two colors
@@ -184,6 +193,9 @@ const Visualizer: React.FC<VisualizerProps> = ({ energy, triggerSignal, sparkleS
             b: COLOR_EUPHORIA.b + intensity * 10
           };
         }
+
+        // Apply hue shift to background
+        bgColor.h = (bgColor.h + (hueShiftRef.current || 0) + 360) % 360;
 
         // Subtle pulse based on energy
         const pulseSpeed = 0.03 + e * 0.05;
