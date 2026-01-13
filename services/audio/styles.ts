@@ -145,16 +145,18 @@ const UPLIFTING_TRANCE: Style = {
     ],
 
     leadWaveform: 'fatsawtooth',
-    leadSpread: 35,
-    filterCutoff: 3500,
-    filterResonance: 4,
+    leadSpread: 40,              // Increased spread for bigger supersaw
+    filterCutoff: 5000,          // Higher cutoff for brighter sound
+    filterResonance: 3,
 
-    // Sharp stab - instant attack, no sustain, euphoric
+    // FIXED: Trance lead should be punchy BUT audible
+    // Previous: too short (0.08 decay, 0 sustain) - notes disappeared instantly
+    // New: proper "trance stab" with body
     leadEnvelope: {
-        attack: 0.001,
-        decay: 0.08,
-        sustain: 0,
-        release: 0.15
+        attack: 0.001,           // Still instant
+        decay: 0.2,              // Longer decay (was 0.08)
+        sustain: 0.3,            // Added sustain so notes "hold" (was 0)
+        release: 0.4             // Longer release with reverb tail (was 0.15)
     },
 
     // Driving, energetic
@@ -170,10 +172,10 @@ const UPLIFTING_TRANCE: Style = {
     hihatStyle: 'open',
     swingAmount: 0,
 
-    reverbDecay: 3.5,
-    reverbWet: 0.35,
-    delayTime: '4n',
-    delayFeedback: 0.35,
+    reverbDecay: 4,              // Longer reverb for epic feel (was 3.5)
+    reverbWet: 0.4,              // More reverb mix (was 0.35)
+    delayTime: '8n.',            // Dotted 8th for classic trance delay
+    delayFeedback: 0.4,          // More feedback (was 0.35)
 
     hueShift: -40  // Shift towards cyan/blue
 };
@@ -200,15 +202,15 @@ const DEEP_HOUSE: Style = {
 
     leadWaveform: 'triangle',
     leadSpread: 15,
-    filterCutoff: 1200,
-    filterResonance: 6,
+    filterCutoff: 1800,          // Raised from 1200 - still dark but audible
+    filterResonance: 5,          // Slightly less resonance
 
-    // Soft, dreamy - slow attack, pad-like
+    // Soft, dreamy - but responsive enough to feel the input
     leadEnvelope: {
-        attack: 0.08,
-        decay: 0.3,
-        sustain: 0.4,
-        release: 0.5
+        attack: 0.04,            // Faster attack (was 0.08) - still soft but responsive
+        decay: 0.25,             // Slightly shorter (was 0.3)
+        sustain: 0.35,           // Slightly less sustain (was 0.4)
+        release: 0.5             // Keep long release for dreamy tail
     },
 
     // Syncopated, minimalist
@@ -255,15 +257,15 @@ const NU_DISCO: Style = {
 
     leadWaveform: 'fatsawtooth',
     leadSpread: 30,
-    filterCutoff: 4000,  // Bright!
+    filterCutoff: 4500,          // Even brighter for that disco shine
     filterResonance: 3,
 
-    // Funky stab - quick attack, short decay, groovy
+    // Funky stab - punchy but with body
     leadEnvelope: {
-        attack: 0.005,
-        decay: 0.1,
-        sustain: 0.1,
-        release: 0.2
+        attack: 0.005,           // Still instant
+        decay: 0.15,             // Longer decay (was 0.1) - notes have more body
+        sustain: 0.2,            // More sustain (was 0.1) - notes "pop"
+        release: 0.25            // Slightly longer (was 0.2)
     },
 
     // Funky, groovy offbeats
@@ -309,16 +311,17 @@ const TECH_HOUSE: Style = {
     ],
 
     leadWaveform: 'fatsquare',
-    leadSpread: 10,  // Tighter, more focused
-    filterCutoff: 800,  // Dark, filtered
-    filterResonance: 8,  // High resonance for acid-y feel
+    leadSpread: 10,              // Tighter, more focused
+    filterCutoff: 1200,          // Raised from 800 - still dark but notes cut through
+    filterResonance: 8,          // High resonance for acid-y feel
 
-    // Sharp blade - instant attack, zero sustain, clinical
+    // FIXED: Same issue as old Trance - notes were disappearing
+    // Tech House is minimal but notes should still be audible
     leadEnvelope: {
-        attack: 0.001,
-        decay: 0.05,
-        sustain: 0,
-        release: 0.1
+        attack: 0.001,           // Still razor sharp
+        decay: 0.12,             // Longer decay (was 0.05) - gives notes some body
+        sustain: 0.15,           // Added sustain (was 0) - notes "exist"
+        release: 0.15            // Slightly longer (was 0.1)
     },
 
     // Minimal, hypnotic

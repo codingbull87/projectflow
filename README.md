@@ -1,20 +1,118 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# 🎵 Project Flow
 
-# Run and deploy your AI Studio app
+一个基于心理学原理设计的互动音乐体验应用。通过键盘输入创造动态电子音乐，随着能量积累体验从静谧到狂喜的5阶段进化。
 
-This contains everything you need to run your app locally.
+![Project Flow Demo](https://img.shields.io/badge/version-0.8-blue) ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue) ![React](https://img.shields.io/badge/React-18-61dafb) ![Tone.js](https://img.shields.io/badge/Tone.js-14-green)
 
-View your app in AI Studio: https://ai.studio/apps/drive/1ovj7glCHDuuQanLUlSmEK3JDU25Xhjf-
+## ✨ 特色功能
 
-## Run Locally
+### 🎨 5种音乐风格自动切换
+| 风格 | 调性 | 氛围 |
+|------|------|------|
+| **Disco House** | A Minor | 温暖律动 |
+| **Uplifting Trance** | E Minor | 明亮史诗 |
+| **Deep House** | D Minor | 深邃迷幻 |
+| **Nu Disco** | C Major | 复古Funky |
+| **Tech House** | G Minor | 冷峻极简 |
 
-**Prerequisites:**  Node.js
+### 🌈 5阶段能量系统
+- **静谧 (Idle)** - 深蓝色，缓慢摇摆
+- **苏醒 (Awakening)** - 青色，开始律动
+- **律动 (Groove)** - 紫色，踏步节拍
+- **心流 (Flow)** - 粉色，全身律动
+- **狂喜 (Euphoria)** - 红色，跳跃挥舞
 
+### 🎹 键盘演奏
+- **Q-P 行**: 高八度 (明亮)
+- **A-L 行**: 中八度 (主旋律)
+- **Z-M 行**: 低八度 (低音)
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## 🚀 快速开始
+
+### 环境要求
+- Node.js 18+ (推荐使用 [nvm](https://github.com/nvm-sh/nvm) 管理)
+- npm 或 yarn
+
+### 安装步骤
+
+```bash
+# 1. 克隆仓库
+git clone https://github.com/YOUR_USERNAME/project-flow.git
+cd project-flow
+
+# 2. 安装依赖
+npm install
+
+# 3. 启动开发服务器
+npm run dev
+```
+
+打开浏览器访问 `http://localhost:5173`
+
+### 一键启动 (可选)
+
+**Windows 用户**: 双击 `Windows一键启动.bat`
+
+**macOS 用户**: 运行 `./macOS一键启动.sh`
+
+## 🛠️ 技术栈
+
+- **前端框架**: React 18 + TypeScript
+- **音频引擎**: Tone.js (Web Audio API)
+- **可视化**: p5.js
+- **构建工具**: Vite
+
+## 📁 项目结构
+
+```
+project-flow/
+├── App.tsx              # 主应用组件
+├── constants.ts         # 全局常量（能量阈值、颜色等）
+├── components/
+│   ├── Visualizer.tsx   # p5.js 可视化组件
+│   └── Controls.tsx     # UI 控制组件
+├── services/
+│   ├── audioEngine.ts   # 音频系统主控制器
+│   └── audio/
+│       ├── styles.ts    # 5种音乐风格定义
+│       ├── styleDirector.ts    # 风格切换状态机
+│       ├── styleApplicator.ts  # 参数应用
+│       ├── rhythm.ts    # 节奏循环
+│       ├── rhythmTriggers.ts   # 乐器触发逻辑
+│       ├── melody.ts    # 旋律系统
+│       ├── instruments.ts      # 乐器创建
+│       ├── effects.ts   # 效果链
+│       ├── sparkle.ts   # 惊喜音效
+│       └── riser.ts     # 过渡音效
+└── types.ts             # TypeScript 类型定义
+```
+
+## 🎮 使用说明
+
+1. **点击屏幕** 启动音频（浏览器安全策略要求）
+2. **按任意键** 触发旋律音符
+3. **持续输入** 积累能量，体验音乐进化
+4. **等待切换** 在高能量状态下，风格会自动切换
+
+## 🔧 开发命令
+
+```bash
+# 开发模式
+npm run dev
+
+# 构建生产版本
+npm run build
+
+# 预览生产构建
+npm run preview
+```
+
+## 📄 许可证
+
+MIT License
+
+## 🙏 致谢
+
+- [Tone.js](https://tonejs.github.io/) - 强大的 Web Audio 框架
+- [p5.js](https://p5js.org/) - 创意编程可视化库
+- [Vite](https://vitejs.dev/) - 下一代前端构建工具
