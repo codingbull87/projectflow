@@ -5,6 +5,9 @@ interface ControlsProps {
   onToggle: () => void;
   energy: number;
   stage: string;
+  styleName?: string;
+  isTransitioning?: boolean;
+  transitionProgress?: number;
 }
 
 // Stage display names (Chinese + English)
@@ -25,9 +28,25 @@ const STAGE_COLORS: Record<string, string> = {
   euphoria: '#ef4444'    // Red
 };
 
-const Controls: React.FC<ControlsProps> = ({ isPlaying, onToggle, energy, stage }) => {
+// Style display info
+const STYLE_INFO: Record<string, { icon: string; color: string }> = {
+  'Disco House': { icon: '🪩', color: '#f59e0b' },
+  'Uplifting Trance': { icon: '✨', color: '#06b6d4' },
+  'Deep House': { icon: '🌊', color: '#8b5cf6' }
+};
+
+const Controls: React.FC<ControlsProps> = ({
+  isPlaying,
+  onToggle,
+  energy,
+  stage,
+  styleName = 'Disco House',
+  isTransitioning = false,
+  transitionProgress = 0
+}) => {
   const stageInfo = STAGE_LABELS[stage] || STAGE_LABELS.idle;
   const stageColor = STAGE_COLORS[stage] || STAGE_COLORS.idle;
+  const styleInfo = STYLE_INFO[styleName] || { icon: '🎵', color: '#ffffff' };
 
   return (
     <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-8 z-10">
@@ -67,6 +86,34 @@ const Controls: React.FC<ControlsProps> = ({ isPlaying, onToggle, energy, stage 
 
       {/* Bottom - Energy Meter with 5 Stages */}
       <div className="w-full max-w-lg mx-auto">
+
+        {/* Current Style Display (NEW) */}
+        {isPlaying && (
+          <div className="text-center mb-3">
+            <div
+              className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full backdrop-blur-sm transition-all duration-500 ${isTransitioning ? 'animate-pulse' : ''
+                }`}
+              style={{
+                backgroundColor: `${styleInfo.color}20`,
+                borderColor: `${styleInfo.color}40`,
+                borderWidth: '1px'
+              }}
+            >
+              <span className="text-lg">{styleInfo.icon}</span>
+              <span
+                className="text-sm font-medium transition-colors duration-300"
+                style={{ color: styleInfo.color }}
+              >
+                {styleName}
+              </span>
+              {isTransitioning && (
+                <span className="text-white/60 text-xs ml-1">
+                  → Switching...
+                </span>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Current Stage Display */}
         {isPlaying && (
@@ -112,6 +159,14 @@ const Controls: React.FC<ControlsProps> = ({ isPlaying, onToggle, energy, stage 
               boxShadow: `0 0 15px ${stageColor}, 0 0 30px ${stageColor}40`
             }}
           />
+
+          {/* Transition indicator overlay */}
+          {isTransitioning && (
+            <div
+              className="absolute top-0 left-0 h-full bg-white/30 transition-all duration-200"
+              style={{ width: `${transitionProgress * 100}%` }}
+            />
+          )}
         </div>
 
         {/* Energy percentage */}

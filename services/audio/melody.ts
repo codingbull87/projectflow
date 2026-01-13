@@ -1,30 +1,21 @@
 import * as Tone from 'tone';
-import { Instruments, updateLeadTimbre } from './instruments';
+import { Instruments } from './instruments';
+import { getStyleDirector } from './styleDirector';
 import {
     ENERGY_THRESHOLD_AWAKENING,
     ENERGY_THRESHOLD_GROOVE,
     ENERGY_THRESHOLD_FLOW,
-    ENERGY_THRESHOLD_EUPHORIA,
-    SCALE_IDLE,
-    SCALE_AWAKENING,
-    SCALE_GROOVE,
-    SCALE_FLOW,
-    SCALE_EUPHORIA
+    ENERGY_THRESHOLD_EUPHORIA
 } from '../../constants';
 
 /**
- * Melody Module - DISCO STAB Style
- * Optimized for fast tapping with punchy, weighty sound
- * Key: A Minor Natural
+ * Melody Module - Now integrated with StyleDirector
+ * 
+ * KEY CHANGES:
+ * 1. Scale/chords come from current style
+ * 2. Keyboard mapping dynamically adjusts to current key
+ * 3. Contextual notes filter based on current chord
  */
-
-// Chord progression in A Minor (classic EDM: Am - F - C - G)
-const CHORD_SCALES = [
-    ['A', 'C', 'E'],           // Am (i)
-    ['F', 'A', 'C'],           // F  (VI)
-    ['C', 'E', 'G'],           // C  (III)
-    ['G', 'B', 'D']            // G  (VII)
-];
 
 // Faster response for Mikutap-style tapping
 let lastMelodyTime = 0;
@@ -40,24 +31,54 @@ function getEnergyStage(energy: number): EnergyStage {
     return 'idle';
 }
 
-function getScaleForStage(stage: EnergyStage): string[] {
-    switch (stage) {
-        case 'idle': return SCALE_IDLE;
-        case 'awakening': return SCALE_AWAKENING;
-        case 'groove': return SCALE_GROOVE;
-        case 'flow': return SCALE_FLOW;
-        case 'euphoria': return SCALE_EUPHORIA;
-    }
+/**
+ * Dynamic keyboard mapping based on current style's scale
+ * 
+ * Row 1 (q-p): High octave (bright)
+ * Row 2 (a-l): Mid octave (main)
+ * Row 3 (z-m): Low octave (bass)
+ */
+function buildKeyboardMap(scale: string[]): Record<string, string> {
+    const map: Record<string, string> = {};
+
+    // Row 1: q w e r t y u i o p (10 keys, octave 3-4)
+    const row1Keys = ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'];
+    // Row 2: a s d f g h j k l (9 keys, octave 2-3)
+    const row2Keys = ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'];
+    // Row 3: z x c v b n m (7 keys, octave 1-2)
+    const row3Keys = ['z', 'x', 'c', 'v', 'b', 'n', 'm'];
+
+    // Build scale with octaves
+    const scaleLen = scale.length;
+
+    // Row 1: Octave 3-4 (bright, energetic)
+    row1Keys.forEach((key, i) => {
+        const noteIndex = i % scaleLen;
+        const octave = i < scaleLen ? 3 : 4;
+        map[key] = scale[noteIndex] + octave;
+    });
+
+    // Row 2: Octave 2-3 (mid range)
+    row2Keys.forEach((key, i) => {
+        const noteIndex = i % scaleLen;
+        const octave = i < scaleLen ? 2 : 3;
+        map[key] = scale[noteIndex] + octave;
+    });
+
+    // Row 3: Octave 1-2 (bass)
+    row3Keys.forEach((key, i) => {
+        const noteIndex = i % scaleLen;
+        const octave = i < scaleLen ? 1 : 2;
+        map[key] = scale[noteIndex] + octave;
+    });
+
+    return map;
 }
 
-function getCurrentChordIndex(): number {
-    if (Tone.Transport.state !== 'started') return 0;
-    const barNum = Math.floor(Tone.Transport.ticks / (Tone.Transport.PPQ * 4));
-    return Math.floor(barNum / 4) % CHORD_SCALES.length;
-}
-
-function getContextualNotes(stageScale: string[], chordIndex: number): string[] {
-    const chordNotes = CHORD_SCALES[chordIndex];
+/**
+ * Get contextual notes that fit the current chord
+ */
+function getContextualNotes(stageScale: string[], chordNotes: string[]): string[] {
     const filtered = stageScale.filter(note => {
         const noteName = note.replace(/\d+/g, '');
         return chordNotes.includes(noteName);
@@ -66,45 +87,22 @@ function getContextualNotes(stageScale: string[], chordIndex: number): string[] 
 }
 
 /**
- * Keyboard to Note Mapping
- * Row 1 (q-p): Octave 3-4 (mid-high, bright)
- * Row 2 (a-l): Octave 2-3 (mid, main area) 
- * Row 3 (z-m): Octave 1-2 (low bass, weight)
- * 
- * Uses A Minor Natural: A, B, C, D, E, F, G
- * Contains tension intervals: B-C (semitone), E-F (semitone)
+ * Get note from key, with dynamic style-based mapping
  */
-const KEYBOARD_MAP: Record<string, string> = {
-    // Row 1: q w e r t y u i o p (Octave 3-4 - bright, energetic)
-    'q': 'A3', 'w': 'B3', 'e': 'C4', 'r': 'D4', 't': 'E4',
-    'y': 'F4', 'u': 'G4', 'i': 'A4', 'o': 'B4', 'p': 'C5',
-
-    // Row 2: a s d f g h j k l (Octave 2-3 - mid range, main)
-    'a': 'A2', 's': 'B2', 'd': 'C3', 'f': 'D3', 'g': 'E3',
-    'h': 'F3', 'j': 'G3', 'k': 'A3', 'l': 'B3',
-
-    // Row 3: z x c v b n m (Octave 1-2 - bass, heavy)
-    'z': 'A1', 'x': 'B1', 'c': 'C2', 'v': 'D2', 'b': 'E2',
-    'n': 'F2', 'm': 'G2'
-};
-
-/**
- * Get note from key, falling back to random scale note if key not mapped
- */
-function getNoteFromKey(key: string | undefined, fallbackScale: string[]): string {
-    if (key && KEYBOARD_MAP[key.toLowerCase()]) {
-        return KEYBOARD_MAP[key.toLowerCase()];
+function getNoteFromKey(key: string | undefined, scale: string[], fallbackNotes: string[]): string {
+    if (key) {
+        const keyboardMap = buildKeyboardMap(scale);
+        const lowerKey = key.toLowerCase();
+        if (keyboardMap[lowerKey]) {
+            return keyboardMap[lowerKey];
+        }
     }
-    // Fallback: random note from scale
-    const note = fallbackScale[Math.floor(Math.random() * fallbackScale.length)];
-    return note;
+    // Fallback: random note from available notes
+    return fallbackNotes[Math.floor(Math.random() * fallbackNotes.length)];
 }
 
 /**
- * Trigger a quantized melodic note - DISCO STAB Style
- * - Keyboard mapped to specific notes for variety
- * - Lower octaves for weight
- * - Sub layer for low-end support
+ * Trigger a quantized melodic note - Style-aware version
  */
 export function triggerQuantizedNote(
     instruments: Instruments,
@@ -122,13 +120,17 @@ export function triggerQuantizedNote(
     }
     lastMelodyTime = now;
 
-    const stage = getEnergyStage(energy);
-    const stageScale = getScaleForStage(stage);
-    const chordIndex = getCurrentChordIndex();
-    const availableNotes = getContextualNotes(stageScale, chordIndex);
+    // Get current style info from StyleDirector
+    const director = getStyleDirector();
+    const currentStyle = director.getCurrentStyle();
+    const currentChord = director.getCurrentChord();
 
-    // Get note from keyboard mapping, or fallback to random
-    const mappedNote = getNoteFromKey(key, availableNotes);
+    const stage = getEnergyStage(energy);
+    const stageScale = director.getScaleForStage(stage);
+    const availableNotes = getContextualNotes(stageScale, currentChord.notes);
+
+    // Get note from keyboard mapping (based on current style's scale)
+    const mappedNote = getNoteFromKey(key, currentStyle.scale, availableNotes);
     const noteName = mappedNote.replace(/\d+/g, '');
     const noteOctave = parseInt(mappedNote.match(/\d+/)?.[0] || '3');
 
@@ -144,44 +146,37 @@ export function triggerQuantizedNote(
     const subOctave = Math.max(1, noteOctave - 1);
     const subNote = noteName + subOctave;
 
+    // Velocity boost during transitions for excitement
+    const transitionBoost = director.isInTransition() ? 1.15 : 1.0;
+
     switch (stage) {
         case 'idle': {
-            // Just the mapped note, warm feel
-            lead.triggerAttackRelease(mappedNote, dur, triggerTime, 0.5);
+            lead.triggerAttackRelease(mappedNote, dur, triggerTime, 0.5 * transitionBoost);
             break;
         }
 
         case 'awakening': {
-            // Main note + sub layer
-            lead.triggerAttackRelease(mappedNote, dur, triggerTime, 0.6);
+            lead.triggerAttackRelease(mappedNote, dur, triggerTime, 0.6 * transitionBoost);
             subLayer.triggerAttackRelease(subNote, dur, triggerTime, 0.4);
             break;
         }
 
         case 'groove': {
-            // Punchy stab with sub support
-            lead.triggerAttackRelease(mappedNote, dur, triggerTime, 0.75);
+            lead.triggerAttackRelease(mappedNote, dur, triggerTime, 0.75 * transitionBoost);
             subLayer.triggerAttackRelease(subNote, dur, triggerTime, 0.5);
             break;
         }
 
         case 'flow': {
-            // Chord power: note + fifth, with sub
             const fifth = Tone.Frequency(mappedNote).transpose(7).toNote();
-
-            lead.triggerAttackRelease([mappedNote, fifth], dur, triggerTime, 0.8);
+            lead.triggerAttackRelease([mappedNote, fifth], dur, triggerTime, 0.8 * transitionBoost);
             subLayer.triggerAttackRelease(subNote, dur, triggerTime, 0.55);
             break;
         }
 
         case 'euphoria': {
-            // Maximum impact: chord + sub + optional high sparkle
             const fifth = Tone.Frequency(mappedNote).transpose(7).toNote();
-
-            // Main stab chord
-            lead.triggerAttackRelease([mappedNote, fifth], dur, triggerTime, 0.9);
-
-            // Sub layer for weight
+            lead.triggerAttackRelease([mappedNote, fifth], dur, triggerTime, 0.9 * transitionBoost);
             subLayer.triggerAttackRelease(subNote, dur, triggerTime, 0.6);
 
             // At very high energy, add metallic bite (one octave up)
@@ -193,4 +188,3 @@ export function triggerQuantizedNote(
         }
     }
 }
-

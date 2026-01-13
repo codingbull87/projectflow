@@ -56,6 +56,11 @@ function App() {
   const [sparkleSignal, setSparkleSignal] = useState(0);
   const [currentStage, setCurrentStage] = useState('idle');
 
+  // NEW: Style-related states
+  const [currentStyleName, setCurrentStyleName] = useState('Disco House');
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [transitionProgress, setTransitionProgress] = useState(0);
+
   const energyRef = useRef(0);
   const requestRef = useRef<number | null>(null);
 
@@ -63,6 +68,20 @@ function App() {
   const handleTogglePlay = async () => {
     if (!isPlaying) {
       await audioEngine.init();
+
+      // Setup style change callbacks
+      audioEngine.onStyleChange((styleName) => {
+        setCurrentStyleName(styleName);
+      });
+
+      audioEngine.onTransition((transitioning, progress) => {
+        setIsTransitioning(transitioning);
+        setTransitionProgress(progress);
+      });
+
+      // Get initial style name
+      setCurrentStyleName(audioEngine.getCurrentStyleName());
+
       audioEngine.start();
       setIsPlaying(true);
     } else {
@@ -82,8 +101,17 @@ function App() {
       audioEngine.updateEnergy(energyRef.current);
     }
 
+    // Update transition state from audio engine
+    if (isPlaying) {
+      const transitioning = audioEngine.isInTransition();
+      if (transitioning !== isTransitioning) {
+        setIsTransitioning(transitioning);
+        setTransitionProgress(audioEngine.getTransitionProgress());
+      }
+    }
+
     requestRef.current = requestAnimationFrame(animate);
-  }, []);
+  }, [isPlaying, isTransitioning]);
 
   useEffect(() => {
     requestRef.current = requestAnimationFrame(animate);
@@ -147,6 +175,9 @@ function App() {
         onToggle={handleTogglePlay}
         energy={energy}
         stage={currentStage}
+        styleName={currentStyleName}
+        isTransitioning={isTransitioning}
+        transitionProgress={transitionProgress}
       />
     </div>
   );
