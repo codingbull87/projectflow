@@ -9,15 +9,24 @@ import {
 } from './styles';
 import { Instruments } from './instruments';
 import { Effects } from './effects';
+import {
+    applyStyleToInstruments,
+    applyStyleToEffects,
+    collectInterpolatedValues,
+    getStyleValues,
+    interpolateStyleValue
+} from './styleApplicator';
 
 /**
  * StyleDirector - Orchestrates style transitions
  * 
- * Responsibilities:
+ * Core responsibilities:
  * 1. Track current style and how long it's been active
  * 2. Detect when to trigger a transition
- * 3. Smoothly interpolate parameters during transitions
+ * 3. Manage transition state and progress
  * 4. Notify other systems of style changes
+ * 
+ * Parameter application is delegated to styleApplicator.ts
  * 
  * Design: "Fake Drop" - When transitioning, energy briefly drops
  * to create contrast, then the new style "explodes" in
@@ -71,6 +80,10 @@ export class StyleDirector {
 
     public getTransitionProgress(): number {
         return this.transitionState?.progress || 0;
+    }
+
+    public getTransitionState(): TransitionState | null {
+        return this.transitionState;
     }
 
     /**
@@ -228,92 +241,52 @@ export class StyleDirector {
     }
 
     // ================================
-    // PARAMETER INTERPOLATION
+    // PARAMETER ACCESS (Delegates to styleApplicator)
     // ================================
 
     /**
      * Get interpolated value during transition
      * Returns current style value if not transitioning
      */
-    public getInterpolatedValue<K extends keyof Style>(
-        key: K,
-        defaultValue?: Style[K]
-    ): Style[K] {
+    public getInterpolatedValue<K extends keyof Style>(key: K): Style[K] {
         if (!this.transitionState) {
             return this.currentStyle[key];
         }
 
         const { fromStyle, toStyle, progress } = this.transitionState;
-        const fromVal = fromStyle[key];
-        const toVal = toStyle[key];
-
-        // For numbers, interpolate linearly
-        if (typeof fromVal === 'number' && typeof toVal === 'number') {
-            return (fromVal + (toVal - fromVal) * progress) as Style[K];
-        }
-
-        // For non-numbers, switch at 50%
-        return progress < 0.5 ? fromVal : toVal;
+        return interpolateStyleValue(fromStyle, toStyle, progress, key);
     }
 
     /**
      * Apply current style parameters to instruments
-     * Now includes Envelope parameters for unique "feel" per style
+     * Delegates to styleApplicator module
      */
     public applyStyleToInstruments(instruments: Instruments, now: number): void {
-        const waveform = this.getInterpolatedValue('leadWaveform');
-        const spread = this.getInterpolatedValue('leadSpread');
-        const envelope = this.getInterpolatedValue('leadEnvelope');
+        const values = this.transitionState
+            ? collectInterpolatedValues(
+                this.transitionState.fromStyle,
+                this.transitionState.toStyle,
+                this.transitionState.progress
+            )
+            : getStyleValues(this.currentStyle);
 
-        // Apply lead synth parameters including envelope
-        try {
-            instruments.lead.set({
-                oscillator: {
-                    type: waveform as any,
-                    spread: spread
-                },
-                envelope: {
-                    attack: envelope.attack,
-                    decay: envelope.decay,
-                    sustain: envelope.sustain,
-                    release: envelope.release
-                }
-            });
-
-            // Also apply to subLayer for consistent feel
-            instruments.subLayer.set({
-                envelope: {
-                    attack: envelope.attack * 1.2,  // Slightly slower attack for sub
-                    decay: envelope.decay * 1.5,
-                    sustain: envelope.sustain * 0.8,
-                    release: envelope.release * 1.2
-                }
-            });
-        } catch (e) {
-            // Ignore errors from rapid parameter changes
-        }
+        applyStyleToInstruments(instruments, values);
     }
 
     /**
      * Apply current style parameters to effects
+     * Delegates to styleApplicator module
      */
     public applyStyleToEffects(effects: Effects, now: number): void {
-        const reverbWet = this.getInterpolatedValue('reverbWet');
-        const reverbDecay = this.getInterpolatedValue('reverbDecay');
-        const delayFeedback = this.getInterpolatedValue('delayFeedback');
-        const delayTime = this.getInterpolatedValue('delayTime');
-        const filterCutoff = this.getInterpolatedValue('filterCutoff');
-        const filterQ = this.getInterpolatedValue('filterResonance');
+        const values = this.transitionState
+            ? collectInterpolatedValues(
+                this.transitionState.fromStyle,
+                this.transitionState.toStyle,
+                this.transitionState.progress
+            )
+            : getStyleValues(this.currentStyle);
 
-        // Smooth transitions using rampTo
-        effects.reverb.wet.rampTo(reverbWet, 2);
-        effects.reverb.decay = reverbDecay; // Decay is not AudioParam, set directly
-
-        effects.delay.feedback.rampTo(delayFeedback, 2);
-        effects.delay.delayTime.value = delayTime; // Time is tricky to ramp, set directly
-
-        effects.leadFilter.frequency.rampTo(filterCutoff, 1);
-        effects.leadFilter.Q.rampTo(filterQ, 1);
+        applyStyleToEffects(effects, values);
     }
 
     // ================================
@@ -337,7 +310,10 @@ export class StyleDirector {
     }
 }
 
-// Singleton instance
+// ================================
+// SINGLETON MANAGEMENT
+// ================================
+
 let directorInstance: StyleDirector | null = null;
 
 export function getStyleDirector(): StyleDirector {

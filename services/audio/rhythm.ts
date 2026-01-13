@@ -13,14 +13,24 @@ import {
     DROP_CHANCE,
     DROP_SILENCE_DURATION
 } from '../../constants';
+import {
+    EnergyStage,
+    TriggerContext,
+    processKickTrigger,
+    processBassTrigger,
+    processHihatTrigger,
+    processSnareTrigger,
+    applySidechainDuck
+} from './rhythmTriggers';
 
 /**
- * Rhythm Module - Now integrated with StyleDirector
+ * Rhythm Module - Main Loop Controller
  * 
- * KEY CHANGES:
- * 1. Chord roots come from current style
- * 2. Bar counter triggers StyleDirector.onBar()
- * 3. Kick/bass style varies by current style
+ * Now uses separated trigger logic from rhythmTriggers.ts
+ * This file only contains:
+ * 1. BeatCounter class
+ * 2. Main rhythm loop scheduling
+ * 3. Coordinating trigger calls
  */
 
 // Minimum time between triggers for each instrument type
@@ -31,6 +41,9 @@ const MIN_INTERVAL = {
     BASS: 0.1     // 100ms
 };
 
+/**
+ * Tracks beat position within the transport
+ */
 class BeatCounter {
     private sixteenthCount = 0;
 
@@ -42,14 +55,17 @@ class BeatCounter {
     get sixteenth(): number { return this.sixteenthCount % 4; }
     get currentStep(): number { return this.sixteenthCount % 16; } // 0-15 for pattern indexing
 
-    // Now gets chord from StyleDirector instead of hardcoded array
+    // Gets chord from StyleDirector
     get currentRoot(): string {
         const director = getStyleDirector();
         return director.getCurrentChord().root;
     }
 }
 
-function getEnergyStage(energy: number): 'idle' | 'awakening' | 'groove' | 'flow' | 'euphoria' {
+/**
+ * Determine energy stage from energy value
+ */
+function getEnergyStage(energy: number): EnergyStage {
     if (energy >= ENERGY_THRESHOLD_EUPHORIA) return 'euphoria';
     if (energy >= ENERGY_THRESHOLD_FLOW) return 'flow';
     if (energy >= ENERGY_THRESHOLD_GROOVE) return 'groove';
@@ -57,6 +73,10 @@ function getEnergyStage(energy: number): 'idle' | 'awakening' | 'groove' | 'flow
     return 'idle';
 }
 
+/**
+ * Start the main rhythm loop
+ * Schedules a 16th note callback that triggers all rhythm instruments
+ */
 export function startRhythmLoop(
     instruments: Instruments,
     sidechainNode: Tone.Volume,
@@ -66,7 +86,7 @@ export function startRhythmLoop(
     const counter = new BeatCounter();
     const director = getStyleDirector();
 
-    // Last trigger times
+    // Last trigger times (for throttling)
     let lastKick = 0;
     let lastSnare = 0;
     let lastHihat = 0;
@@ -77,7 +97,7 @@ export function startRhythmLoop(
     Tone.Transport.scheduleRepeat((time) => {
         const energy = getEnergy();
         const stage = getEnergyStage(energy);
-        const { bar, beat, sixteenth, currentRoot } = counter;
+        const { bar, beat, sixteenth, currentRoot, currentStep } = counter;
 
         // ================================
         // NOTIFY STYLE DIRECTOR ON NEW BAR
@@ -89,7 +109,6 @@ export function startRhythmLoop(
 
         // Get current style for style-specific behavior
         const currentStyle = director.getCurrentStyle();
-        const kickStyle = currentStyle.kickStyle;
 
         // ================================
         // DROP EFFECT (Euphoria only)
@@ -110,147 +129,83 @@ export function startRhythmLoop(
         }
 
         // ================================
-        // RHYTHM PATTERNS (Style-Driven)
+        // BUILD TRIGGER CONTEXT
         // ================================
+        const ctx: TriggerContext = {
+            time,
+            stepIndex: currentStep,
+            beat,
+            energy,
+            stage,
+            currentStyle,
+            currentRoot
+        };
 
-        // Get pattern values for current step (0-15)
-        // We use the 16th note index directly into the style's pattern arrays
-        const stepIndex = counter.currentStep;
-        const kickTrigger = currentStyle.patterns.kick[stepIndex];
-        const bassTrigger = currentStyle.patterns.bass[stepIndex];
-        const hihatTrigger = currentStyle.patterns.hihat[stepIndex];
-        const snareTrigger = currentStyle.patterns.snare[stepIndex];
+        // Get pattern values for current step
+        const kickPattern = currentStyle.patterns.kick[currentStep];
+        const bassPattern = currentStyle.patterns.bass[currentStep];
+        const hihatPattern = currentStyle.patterns.hihat[currentStep];
+        const snarePattern = currentStyle.patterns.snare[currentStep];
 
         // ================================
-        // KICK logic
+        // KICK
         // ================================
-        if (time > lastKick + MIN_INTERVAL.KICK && kickTrigger > 0) {
-            let shouldKick = false;
-            let kickVelocity = 0.7;
-
-            // Base velocity from style settings
-            const styleVelocityMod = kickStyle === 'soft' ? 0.8
-                : kickStyle === 'punchy' ? 1.0
-                    : 1.15;
-
-            // Energy Masking:
-            // Low energy = filter out some pattern hits to keep it sparse
-            if (stage === 'idle') {
-                // Idle: only allow kicks on beats 1 and 3 (index 0, 8)
-                if (stepIndex === 0 || stepIndex === 8) {
-                    shouldKick = true;
-                    kickVelocity = 0.5;
-                }
-            } else if (stage === 'awakening') {
-                // Awakening: allow beats 1, 2, 3, 4 (quarters)
-                if (stepIndex % 4 === 0) {
-                    shouldKick = true;
-                    kickVelocity = 0.6;
-                }
-            } else {
-                // Groove/Flow/Euphoria: Full pattern
-                shouldKick = true;
-                // Scale velocity with energy
-                kickVelocity = 0.7 + (energy * 0.3);
-            }
-
-            if (shouldKick) {
-                const finalVel = Math.min(1.5, kickVelocity * styleVelocityMod);
-                instruments.kick.triggerAttackRelease('C1', '8n', time, finalVel);
+        if (time > lastKick + MIN_INTERVAL.KICK) {
+            const kickResult = processKickTrigger(ctx, kickPattern);
+            if (kickResult.shouldTrigger) {
+                instruments.kick.triggerAttackRelease(
+                    kickResult.note!,
+                    kickResult.duration!,
+                    time,
+                    kickResult.velocity!
+                );
                 lastKick = time;
-
-                // Sidechain processing
-                if (stage !== 'idle') {
-                    const depth = stage === 'awakening' ? -6
-                        : stage === 'groove' ? -12
-                            : stage === 'flow' ? -20
-                                : -30;
-                    sidechainNode.volume.cancelScheduledValues(time);
-                    sidechainNode.volume.setValueAtTime(depth, time);
-                    sidechainNode.volume.setTargetAtTime(0, time, 0.06);
-                }
+                applySidechainDuck(sidechainNode, stage, time);
             }
         }
 
         // ================================
-        // BASS logic
+        // BASS
         // ================================
-        if (time > lastBass + MIN_INTERVAL.BASS && bassTrigger > 0) {
-            let shouldTriggerBass = false;
-            let bassDuration = '8n';
-            let bassVelocity = 0.6;
-            const bassRoot = currentRoot;
-
-            if (stage === 'idle') {
-                // Idle: only root notes on bar start
-                if (stepIndex === 0 && beat === 0) {
-                    shouldTriggerBass = true;
-                    bassDuration = '1n';
-                    bassVelocity = 0.5;
-                }
-            } else if (stage === 'awakening') {
-                // Awakening: simplified pattern (only downbeats)
-                if (stepIndex % 4 === 0) {
-                    shouldTriggerBass = true;
-                    bassDuration = '4n';
-                }
-            } else {
-                // Full pattern for Groove+
-                shouldTriggerBass = true;
-                bassVelocity = 0.6 + (energy * 0.3);
-                // Adjust duration based on density
-                if (currentStyle.id === 'trance') bassDuration = '16n';
-            }
-
-            if (shouldTriggerBass) {
-                instruments.bass.triggerAttackRelease(bassRoot, bassDuration, time + 0.002, bassVelocity);
+        if (time > lastBass + MIN_INTERVAL.BASS) {
+            const bassResult = processBassTrigger(ctx, bassPattern);
+            if (bassResult.shouldTrigger) {
+                instruments.bass.triggerAttackRelease(
+                    bassResult.note!,
+                    bassResult.duration!,
+                    time + 0.002,
+                    bassResult.velocity!
+                );
                 lastBass = time;
             }
         }
 
         // ================================
-        // HI-HAT logic
+        // HI-HAT
         // ================================
-        if (time > lastHihat + MIN_INTERVAL.HIHAT && hihatTrigger > 0) {
-            let shouldHihat = false;
-            let hihatVelocity = hihatTrigger; // Use value from pattern (0-1) as base
-            let hihatDuration = '32n';
-            const hihatStyle = currentStyle.hihatStyle;
-
-            // Energy masks density
-            if (stage === 'idle') {
-                if (stepIndex % 4 === 0) shouldHihat = true; // Quarters only
-            } else if (stage === 'awakening') {
-                if (stepIndex % 2 === 0) shouldHihat = true; // 8ths
-            } else {
-                shouldHihat = true; // Full pattern
-            }
-
-            if (shouldHihat) {
-                // Add dynamics
-                if (stepIndex % 4 === 0) hihatVelocity += 0.2; // Accent downbeats
-
-                // Style nuances
-                if (hihatStyle === 'open' && (stepIndex === 2 || stepIndex === 10)) {
-                    hihatDuration = '8n'; // Open hat feel
-                }
-
-                // Global energy scaling
-                hihatVelocity = Math.min(1, hihatVelocity * (0.4 + energy * 0.6));
-
-                instruments.hihat.triggerAttackRelease(hihatDuration, time + 0.004, hihatVelocity);
+        if (time > lastHihat + MIN_INTERVAL.HIHAT) {
+            const hihatResult = processHihatTrigger(ctx, hihatPattern);
+            if (hihatResult.shouldTrigger) {
+                instruments.hihat.triggerAttackRelease(
+                    hihatResult.duration!,
+                    time + 0.004,
+                    hihatResult.velocity!
+                );
                 lastHihat = time;
             }
         }
 
         // ================================
-        // SNARE logic
+        // SNARE
         // ================================
-        if (time > lastSnare + MIN_INTERVAL.SNARE && snareTrigger > 0) {
-            // Snare usually only active from Groove onwards
-            if (stage === 'groove' || stage === 'flow' || stage === 'euphoria') {
-                const snareVelocity = 0.5 + (energy * 0.4);
-                instruments.snare.triggerAttackRelease('16n', time + 0.003, snareVelocity);
+        if (time > lastSnare + MIN_INTERVAL.SNARE) {
+            const snareResult = processSnareTrigger(ctx, snarePattern);
+            if (snareResult.shouldTrigger) {
+                instruments.snare.triggerAttackRelease(
+                    snareResult.duration!,
+                    time + 0.003,
+                    snareResult.velocity!
+                );
                 lastSnare = time;
             }
         }
@@ -268,6 +223,9 @@ export function startRhythmLoop(
     return counter;
 }
 
+/**
+ * Get current chord root note (convenience export)
+ */
 export function getCurrentChordRoot(): string {
     const director = getStyleDirector();
     return director.getCurrentChord().root;
