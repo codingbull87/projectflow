@@ -199,11 +199,105 @@ const DEEP_HOUSE: Style = {
     hueShift: 30  // Shift towards warm purple/magenta
 };
 
+/**
+ * Style 4: Nu Disco (C Major)
+ * Bright, funky, retro-modern feel
+ * Chord: C - Am - F - G (I - vi - IV - V)
+ * The ONLY major key style - provides contrast and "brightness burst"
+ */
+const NU_DISCO: Style = {
+    id: 'nudisco',
+    name: 'Nu Disco',
+
+    key: 'C',
+    mode: 'major',
+    scale: ['C', 'D', 'E', 'F', 'G', 'A', 'B'],
+
+    chordProgression: [
+        { name: 'C', root: 'C2', notes: ['C', 'E', 'G'] },
+        { name: 'Am', root: 'A1', notes: ['A', 'C', 'E'] },
+        { name: 'F', root: 'F1', notes: ['F', 'A', 'C'] },
+        { name: 'G', root: 'G1', notes: ['G', 'B', 'D'] }
+    ],
+
+    leadWaveform: 'fatsawtooth',
+    leadSpread: 30,
+    filterCutoff: 4000,  // Bright!
+    filterResonance: 3,
+
+    // Funky, groovy offbeats
+    patterns: {
+        kick: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0], // Solid 4-on-the-floor
+        bass: [1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0], // Funky walking bass
+        hihat: [1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1], // Disco shuffle
+        snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]  // Classic 2 & 4
+    },
+
+    kickStyle: 'punchy',
+    bassOctave: 2,  // Higher bass for funky feel
+    hihatStyle: 'open',
+    swingAmount: 0.03,  // Slight groove
+
+    reverbDecay: 2,
+    reverbWet: 0.2,  // Drier for clarity
+    delayTime: '8n',
+    delayFeedback: 0.25,
+
+    hueShift: -60  // Shift towards bright cyan/blue-green (happy, bright)
+};
+
+/**
+ * Style 5: Tech House (G Minor)
+ * Cold, minimal, industrial groove
+ * Chord: Gm - Eb - Bb - F (i - VI - III - VII in Gm)
+ * Stripped-down, hypnotic, dark
+ */
+const TECH_HOUSE: Style = {
+    id: 'tech',
+    name: 'Tech House',
+
+    key: 'G',
+    mode: 'minor',
+    scale: ['G', 'A', 'Bb', 'C', 'D', 'Eb', 'F'],
+
+    chordProgression: [
+        { name: 'Gm', root: 'G1', notes: ['G', 'Bb', 'D'] },
+        { name: 'Eb', root: 'Eb1', notes: ['Eb', 'G', 'Bb'] },
+        { name: 'Bb', root: 'Bb1', notes: ['Bb', 'D', 'F'] },
+        { name: 'F', root: 'F1', notes: ['F', 'A', 'C'] }
+    ],
+
+    leadWaveform: 'fatsquare',
+    leadSpread: 10,  // Tighter, more focused
+    filterCutoff: 800,  // Dark, filtered
+    filterResonance: 8,  // High resonance for acid-y feel
+
+    // Minimal, hypnotic
+    patterns: {
+        kick: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0], // Straight 4
+        bass: [1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0], // Minimal bass stabs
+        hihat: [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0], // Sparse offbeat hat
+        snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0]  // Syncopated claps
+    },
+
+    kickStyle: 'hard',
+    bassOctave: 1,
+    hihatStyle: 'closed',
+    swingAmount: 0,  // Dead straight
+
+    reverbDecay: 1.5,  // Short, industrial
+    reverbWet: 0.15,
+    delayTime: '16n',  // Fast delay for texture
+    delayFeedback: 0.3,
+
+    hueShift: 50  // Shift towards yellow/orange (industrial warmth)
+};
+
 // ============================================
 // STYLE POOL & TRANSITIONS
 // ============================================
 
-export const STYLES: Style[] = [DISCO_HOUSE, UPLIFTING_TRANCE, DEEP_HOUSE];
+export const STYLES: Style[] = [DISCO_HOUSE, UPLIFTING_TRANCE, DEEP_HOUSE, NU_DISCO, TECH_HOUSE];
 
 /**
  * Get a style by ID
@@ -225,18 +319,18 @@ export function getRandomNextStyle(currentId: string): Style {
  */
 export const TRANSITION_CONFIG = {
     // Minimum bars before a transition can occur
-    minBarsBeforeTransition: 32,  // ~60 seconds at 128 BPM
+    minBarsBeforeTransition: 16,  // ~30 seconds at 128 BPM (1 full chord cycle)
 
     // Maximum bars before forced transition
-    maxBarsBeforeTransition: 64,  // ~2 minutes
+    maxBarsBeforeTransition: 32,  // ~60 seconds (keeps experience fresh)
 
     // Transition duration in bars
-    transitionDurationBars: 4,    // 8 seconds crossfade
+    transitionDurationBars: 2,    // 4 seconds crossfade (snappier)
 
     // Energy drop during transition
     energyDropTarget: 0.55,       // Drop to mid-Flow
-    energyDropDuration: 2000,     // 2 seconds to drop
-    energyRecoverDelay: 4000,     // Start recovering after 4 seconds
+    energyDropDuration: 1500,     // 1.5 seconds to drop (quicker)
+    energyRecoverDelay: 3000,     // Start recovering after 3 seconds
 };
 
 /**
