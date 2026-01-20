@@ -70,11 +70,22 @@ export function applyStyleToInstruments(
 ): void {
     const { leadWaveform, leadSpread, leadEnvelope } = values;
 
+    // Validate waveform type to prevent runtime errors
+    const validWaveforms: Array<'fatsquare' | 'fatsawtooth' | 'triangle' | 'sine'> =
+        ['fatsquare', 'fatsawtooth', 'triangle', 'sine'];
+
+    let safeWaveform: 'fatsquare' | 'fatsawtooth' | 'triangle' | 'sine' = leadWaveform;
+
+    if (!validWaveforms.includes(leadWaveform)) {
+        console.warn(`[StyleApplicator] Invalid waveform: ${leadWaveform}, using fallback 'fatsquare'`);
+        safeWaveform = 'fatsquare';
+    }
+
     try {
         // Apply to main lead synth
         instruments.lead.set({
             oscillator: {
-                type: leadWaveform as any,
+                type: safeWaveform,
                 spread: leadSpread
             },
             envelope: {

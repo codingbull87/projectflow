@@ -1,16 +1,11 @@
 import * as Tone from 'tone';
 import { Instruments } from './instruments';
 import { getStyleDirector } from './styleDirector';
-import {
-    ENERGY_THRESHOLD_AWAKENING,
-    ENERGY_THRESHOLD_GROOVE,
-    ENERGY_THRESHOLD_FLOW,
-    ENERGY_THRESHOLD_EUPHORIA
-} from '../../constants';
+import { getEnergyStage, EnergyStage } from '../../constants';
 
 /**
  * Melody Module - Now integrated with StyleDirector
- * 
+ *
  * KEY CHANGES:
  * 1. Scale/chords come from current style
  * 2. Keyboard mapping dynamically adjusts to current key
@@ -21,24 +16,23 @@ import {
 let lastMelodyTime = 0;
 const MIN_MELODY_INTERVAL = 0.06; // 60ms - faster than before
 
-type EnergyStage = 'idle' | 'awakening' | 'groove' | 'flow' | 'euphoria';
-
-function getEnergyStage(energy: number): EnergyStage {
-    if (energy >= ENERGY_THRESHOLD_EUPHORIA) return 'euphoria';
-    if (energy >= ENERGY_THRESHOLD_FLOW) return 'flow';
-    if (energy >= ENERGY_THRESHOLD_GROOVE) return 'groove';
-    if (energy >= ENERGY_THRESHOLD_AWAKENING) return 'awakening';
-    return 'idle';
-}
+// Cached keyboard map to avoid rebuilding on every keypress
+let cachedKeyboardMap: Record<string, string> | null = null;
+let cachedScale: string[] | null = null;
 
 /**
  * Dynamic keyboard mapping based on current style's scale
- * 
+ *
  * Row 1 (q-p): High octave (bright)
  * Row 2 (a-l): Mid octave (main)
  * Row 3 (z-m): Low octave (bass)
  */
 function buildKeyboardMap(scale: string[]): Record<string, string> {
+    // Return cached map if scale hasn't changed
+    if (cachedKeyboardMap && cachedScale === scale) {
+        return cachedKeyboardMap;
+    }
+
     const map: Record<string, string> = {};
 
     // Row 1: q w e r t y u i o p (10 keys, octave 3-4)
@@ -71,6 +65,10 @@ function buildKeyboardMap(scale: string[]): Record<string, string> {
         const octave = i < scaleLen ? 1 : 2;
         map[key] = scale[noteIndex] + octave;
     });
+
+    // Cache the map
+    cachedKeyboardMap = map;
+    cachedScale = scale;
 
     return map;
 }

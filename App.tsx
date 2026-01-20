@@ -19,17 +19,9 @@ import {
   SPARKLE_CHANCE_GROOVE,
   SPARKLE_CHANCE_FLOW,
   SPARKLE_CHANCE_EUPHORIA,
-  SPARKLE_ENERGY_BONUS
+  SPARKLE_ENERGY_BONUS,
+  getEnergyStage
 } from './constants';
-
-// Helper: Get current energy stage name
-function getEnergyStage(energy: number): string {
-  if (energy >= ENERGY_THRESHOLD_EUPHORIA) return 'euphoria';
-  if (energy >= ENERGY_THRESHOLD_FLOW) return 'flow';
-  if (energy >= ENERGY_THRESHOLD_GROOVE) return 'groove';
-  if (energy >= ENERGY_THRESHOLD_AWAKENING) return 'awakening';
-  return 'idle';
-}
 
 // Helper: Get sparkle chance based on energy stage
 function getSparkleChance(energy: number): number {

@@ -131,3 +131,22 @@ export const COLOR_ULTRA = COLOR_EUPHORIA;
 
 // Sparkle color (golden flash)
 export const COLOR_SPARKLE = { h: 45, s: 100, b: 100 };   // Gold
+
+// ==========================================
+// UTILITY FUNCTIONS
+// ==========================================
+
+/**
+ * Get the current energy stage based on energy level
+ * @param energy - Current energy value (0.0 to 1.0)
+ * @returns The corresponding energy stage
+ */
+export type EnergyStage = 'idle' | 'awakening' | 'groove' | 'flow' | 'euphoria';
+
+export function getEnergyStage(energy: number): EnergyStage {
+    if (energy >= ENERGY_THRESHOLD_EUPHORIA) return 'euphoria';
+    if (energy >= ENERGY_THRESHOLD_FLOW) return 'flow';
+    if (energy >= ENERGY_THRESHOLD_GROOVE) return 'groove';
+    if (energy >= ENERGY_THRESHOLD_AWAKENING) return 'awakening';
+    return 'idle';
+}

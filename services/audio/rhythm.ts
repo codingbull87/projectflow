@@ -3,10 +3,8 @@ import { Instruments } from './instruments';
 import { SparkleSystem, checkBackgroundSparkle } from './sparkle';
 import { getStyleDirector } from './styleDirector';
 import {
-    ENERGY_THRESHOLD_AWAKENING,
-    ENERGY_THRESHOLD_GROOVE,
-    ENERGY_THRESHOLD_FLOW,
-    ENERGY_THRESHOLD_EUPHORIA,
+    getEnergyStage,
+    EnergyStage,
     SPARKLE_BACKGROUND_INTERVAL_BARS,
     SPARKLE_BACKGROUND_CHANCE,
     DROP_INTERVAL_BARS,
@@ -14,7 +12,6 @@ import {
     DROP_SILENCE_DURATION
 } from '../../constants';
 import {
-    EnergyStage,
     TriggerContext,
     processKickTrigger,
     processBassTrigger,
@@ -25,7 +22,7 @@ import {
 
 /**
  * Rhythm Module - Main Loop Controller
- * 
+ *
  * Now uses separated trigger logic from rhythmTriggers.ts
  * This file only contains:
  * 1. BeatCounter class
@@ -60,17 +57,6 @@ class BeatCounter {
         const director = getStyleDirector();
         return director.getCurrentChord().root;
     }
-}
-
-/**
- * Determine energy stage from energy value
- */
-function getEnergyStage(energy: number): EnergyStage {
-    if (energy >= ENERGY_THRESHOLD_EUPHORIA) return 'euphoria';
-    if (energy >= ENERGY_THRESHOLD_FLOW) return 'flow';
-    if (energy >= ENERGY_THRESHOLD_GROOVE) return 'groove';
-    if (energy >= ENERGY_THRESHOLD_AWAKENING) return 'awakening';
-    return 'idle';
 }
 
 /**

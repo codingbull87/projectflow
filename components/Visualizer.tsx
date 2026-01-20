@@ -24,10 +24,12 @@ interface VisualizerProps {
 /**
  * Visualizer Component
  * Based on Embodied Cognition: Visual feedback reinforces body movement
- * 
+ *
  * Stage colors progression:
  * Idle (Blue) → Awakening (Cyan) → Groove (Purple) → Flow (Pink) → Euphoria (Red)
  */
+const MAX_PARTICLES = 500; // Prevent performance degradation from excessive particles
+
 const Visualizer: React.FC<VisualizerProps> = ({ energy, triggerSignal, sparkleSignal, hueShift = 0 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const p5Instance = useRef<p5 | null>(null);
@@ -89,6 +91,12 @@ const Visualizer: React.FC<VisualizerProps> = ({ energy, triggerSignal, sparkleS
     const p = p5Instance.current;
     const e = energyRef.current;
 
+    // Prevent particle array from growing too large
+    if (particles.current.length >= MAX_PARTICLES) {
+      // Remove oldest particle
+      particles.current.shift();
+    }
+
     const shapes: ShapeType[] = ['circle', 'square', 'triangle'];
     const selectedShape = shapes[Math.floor(Math.random() * shapes.length)];
 
@@ -129,6 +137,11 @@ const Visualizer: React.FC<VisualizerProps> = ({ energy, triggerSignal, sparkleS
     const centerY = p.random(p.height * 0.3, p.height * 0.7);
 
     for (let i = 0; i < count; i++) {
+      // Prevent particle array from growing too large
+      if (particles.current.length >= MAX_PARTICLES) {
+        particles.current.shift();
+      }
+
       const angle = (i / count) * p.TWO_PI + p.random(-0.3, 0.3);
       const speed = p.random(3, 8);
 
@@ -266,21 +279,24 @@ const Visualizer: React.FC<VisualizerProps> = ({ energy, triggerSignal, sparkleS
         // 4. Ambient particles (at higher energy)
         // ================================
         if (e > 0.3 && p.random() < e * 0.03) {
-          const ambColor = getStageColor(e);
-          particles.current.push({
-            x: p.random(p.width),
-            y: p.random(p.height),
-            vx: p.random(-0.5, 0.5),
-            vy: p.random(-0.5, 0.5),
-            size: p.random(3, 8),
-            shape: 'circle',
-            life: 0.5,
-            hue: ambColor.h + p.random(-10, 10),
-            sat: ambColor.s * 0.7,
-            rotation: 0,
-            rotationSpeed: 0,
-            isSparkle: false
-          });
+          // Prevent particle array from growing too large
+          if (particles.current.length < MAX_PARTICLES) {
+            const ambColor = getStageColor(e);
+            particles.current.push({
+              x: p.random(p.width),
+              y: p.random(p.height),
+              vx: p.random(-0.5, 0.5),
+              vy: p.random(-0.5, 0.5),
+              size: p.random(3, 8),
+              shape: 'circle',
+              life: 0.5,
+              hue: ambColor.h + p.random(-10, 10),
+              sat: ambColor.s * 0.7,
+              rotation: 0,
+              rotationSpeed: 0,
+              isSparkle: false
+            });
+          }
         }
       };
     };

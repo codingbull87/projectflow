@@ -15,6 +15,7 @@ export interface RiserSystem {
     pitchSynth: Tone.Synth;
     reverb: Tone.Reverb;
     isPlaying: boolean;
+    riserTimeout: number | null;
 }
 
 let riserInstance: RiserSystem | null = null;
@@ -72,7 +73,8 @@ export function createRiserSystem(destination: Tone.ToneAudioNode): RiserSystem 
         filter,
         pitchSynth,
         reverb,
-        isPlaying: false
+        isPlaying: false,
+        riserTimeout: null
     };
 
     return riserInstance;
@@ -126,10 +128,16 @@ export function triggerRiser(
     riser.pitchSynth.frequency.exponentialRampTo(endPitchHz, durationSeconds * 0.9, now);
     riser.pitchSynth.triggerRelease(endTime - 0.1);
 
+    // Clear any existing timeout to prevent memory leaks
+    if (riser.riserTimeout) {
+        clearTimeout(riser.riserTimeout);
+    }
+
     // Reset state after riser completes
-    setTimeout(() => {
+    riser.riserTimeout = setTimeout(() => {
         riser.isPlaying = false;
         riser.filter.frequency.value = 200; // Reset filter
+        riser.riserTimeout = null;
     }, durationSeconds * 1000 + 500);
 }
 
@@ -160,4 +168,10 @@ export function stopRiser(riser: RiserSystem): void {
     riser.pitchSynth.triggerRelease(now);
     riser.isPlaying = false;
     riser.filter.frequency.value = 200;
+
+    // Clear the timeout to prevent memory leaks
+    if (riser.riserTimeout) {
+        clearTimeout(riser.riserTimeout);
+        riser.riserTimeout = null;
+    }
 }

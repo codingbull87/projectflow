@@ -167,6 +167,12 @@ export class StyleDirector {
      * Start a transition to a new style
      */
     public startTransition(targetStyleId?: string): void {
+        // Guard: Prevent starting a new transition if one is already in progress
+        if (this.transitionState) {
+            console.warn('[StyleDirector] Transition already in progress, ignoring request');
+            return;
+        }
+
         const fromStyle = this.currentStyle;
         const toStyle = targetStyleId
             ? STYLES.find(s => s.id === targetStyleId) || getRandomNextStyle(fromStyle.id)

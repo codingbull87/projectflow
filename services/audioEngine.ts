@@ -29,6 +29,7 @@ class AudioEngine {
   private styleDirector: StyleDirector | null = null;
   private isInitialized = false;
   private currentEnergy = 0;
+  private energyDropInterval: number | null = null;
 
   // Callbacks for external UI updates
   private onStyleChangeCallback?: (styleName: string) => void;
@@ -36,11 +37,17 @@ class AudioEngine {
 
   public async init() {
     if (this.isInitialized) return;
-    await Tone.start();
 
-    // Ensure audio context is running
-    if (Tone.context.state !== 'running') {
-      await Tone.context.resume();
+    try {
+      await Tone.start();
+
+      // Ensure audio context is running
+      if (Tone.context.state !== 'running') {
+        await Tone.context.resume();
+      }
+    } catch (error) {
+      console.error('[AudioEngine] Failed to initialize audio context:', error);
+      throw new Error('Audio context could not be started. Please interact with the page first.');
     }
 
     const masterVol = new Tone.Volume(-2).toDestination();
@@ -158,7 +165,12 @@ class AudioEngine {
     const startEnergy = this.currentEnergy;
     const startTime = Date.now();
 
-    const dropInterval = setInterval(() => {
+    // Clear any existing interval to prevent memory leaks
+    if (this.energyDropInterval) {
+      clearInterval(this.energyDropInterval);
+    }
+
+    this.energyDropInterval = setInterval(() => {
       const elapsed = Date.now() - startTime;
       const progress = Math.min(1, elapsed / dropDuration);
 
@@ -167,7 +179,8 @@ class AudioEngine {
       this.currentEnergy = startEnergy - (startEnergy - targetEnergy) * easeProgress;
 
       if (progress >= 1) {
-        clearInterval(dropInterval);
+        clearInterval(this.energyDropInterval);
+        this.energyDropInterval = null;
         this.currentEnergy = targetEnergy;
       }
     }, 16); // ~60fps
@@ -178,6 +191,11 @@ class AudioEngine {
   }
 
   public stop() {
+    // Clean up energy drop interval to prevent memory leaks
+    if (this.energyDropInterval) {
+      clearInterval(this.energyDropInterval);
+      this.energyDropInterval = null;
+    }
     Tone.Transport.stop();
   }
 
