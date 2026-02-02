@@ -32,7 +32,9 @@ const STAGE_COLORS: Record<string, string> = {
 const STYLE_INFO: Record<string, { icon: string; color: string }> = {
   'Disco House': { icon: '🪩', color: '#f59e0b' },
   'Uplifting Trance': { icon: '✨', color: '#06b6d4' },
-  'Deep House': { icon: '🌊', color: '#8b5cf6' }
+  'Deep House': { icon: '🌊', color: '#8b5cf6' },
+  'Nu Disco': { icon: '🎸', color: '#ec4899' },
+  'Tech House': { icon: '⚡', color: '#10b981' }
 };
 
 const Controls: React.FC<ControlsProps> = ({

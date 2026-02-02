@@ -29,6 +29,7 @@ class AudioEngine {
   private styleDirector: StyleDirector | null = null;
   private isInitialized = false;
   private currentEnergy = 0;
+  private lastUpdatedEnergy = -1; // Track last update for throttling
   private energyDropInterval: number | null = null;
 
   // Callbacks for external UI updates
@@ -201,6 +202,14 @@ class AudioEngine {
 
   public updateEnergy(v: number) {
     this.currentEnergy = Math.max(0, Math.min(1, v));
+
+    // Optimization: Only update effects when energy changes significantly (>1%)
+    const energyDelta = Math.abs(this.currentEnergy - this.lastUpdatedEnergy);
+    if (energyDelta < 0.01 && this.lastUpdatedEnergy !== -1) {
+      return; // Skip update if change is too small
+    }
+
+    this.lastUpdatedEnergy = this.currentEnergy;
 
     if (this.effects && this.instruments) {
       const now = Tone.now();

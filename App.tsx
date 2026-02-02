@@ -56,6 +56,10 @@ function App() {
 
   const energyRef = useRef(0);
   const requestRef = useRef<number | null>(null);
+  const isPlayingRef = useRef(false);
+  const isTransitioningRef = useRef(false);
+  const lastEnergyUpdateRef = useRef(0);
+  const lastStageRef = useRef('idle');
 
   // 1. Audio Initialization
   const handleTogglePlay = async () => {
@@ -77,49 +81,80 @@ function App() {
 
       audioEngine.start();
       setIsPlaying(true);
+      isPlayingRef.current = true;
     } else {
       audioEngine.stop();
       setIsPlaying(false);
+      isPlayingRef.current = false;
     }
   };
 
   // 2. Energy System Loop with Asymmetric Decay (Psychology-Based)
   // High energy = slow decay (enjoy the peak), Low energy = fast decay (rest state)
-  const animate = useCallback(() => {
-    if (energyRef.current > 0) {
-      const decayRate = getDecayRate(energyRef.current);
-      energyRef.current = Math.max(0, energyRef.current - decayRate);
-      setEnergy(energyRef.current);
-      setCurrentStage(getEnergyStage(energyRef.current));
-      audioEngine.updateEnergy(energyRef.current);
-    }
-
-    // Update visual parameters from audio engine (interpolated)
-    if (isPlaying) {
-      setHueShift(audioEngine.getVisualParameters().hueShift);
-
-      // Update transition state from audio engine
-      const transitioning = audioEngine.isInTransition();
-      if (transitioning !== isTransitioning) {
-        setIsTransitioning(transitioning);
-        setTransitionProgress(audioEngine.getTransitionProgress());
-      }
-    }
-
-    requestRef.current = requestAnimationFrame(animate);
-  }, [isPlaying, isTransitioning]);
-
+  // Optimized: Use refs to avoid recreating callback on dependency changes
+  // Throttled updates: Only update state when energy changes significantly
   useEffect(() => {
+    const animate = () => {
+      if (energyRef.current > 0) {
+        const decayRate = getDecayRate(energyRef.current);
+        energyRef.current = Math.max(0, energyRef.current - decayRate);
+
+        // Only update state when energy changes by more than 0.005 (0.5%)
+        const energyDelta = Math.abs(energyRef.current - lastEnergyUpdateRef.current);
+        if (energyDelta > 0.005) {
+          setEnergy(energyRef.current);
+          lastEnergyUpdateRef.current = energyRef.current;
+        }
+
+        // Only update stage when it actually changes
+        const newStage = getEnergyStage(energyRef.current);
+        if (newStage !== lastStageRef.current) {
+          setCurrentStage(newStage);
+          lastStageRef.current = newStage;
+        }
+
+        audioEngine.updateEnergy(energyRef.current);
+      }
+
+      // Update visual parameters from audio engine (interpolated)
+      if (isPlayingRef.current) {
+        setHueShift(audioEngine.getVisualParameters().hueShift);
+
+        // Update transition state from audio engine
+        const transitioning = audioEngine.isInTransition();
+        if (transitioning !== isTransitioningRef.current) {
+          isTransitioningRef.current = transitioning;
+          setIsTransitioning(transitioning);
+          setTransitionProgress(audioEngine.getTransitionProgress());
+        }
+      }
+
+      requestRef.current = requestAnimationFrame(animate);
+    };
+
     requestRef.current = requestAnimationFrame(animate);
     return () => {
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
     };
-  }, [animate]);
+  }, []); // Empty dependency array - stable animation loop
 
   // 3. Input Handling with Resistance Zones and Sparkle (Dopamine System)
+  // Optimized: Use ref to check isPlaying state, listener remains constant
+  // Added debounce to prevent rapid repeated keypresses
   useEffect(() => {
+    const keyTimestamps = new Map<string, number>();
+    const MIN_KEY_INTERVAL = 50; // 50ms minimum between same key presses
+
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isPlaying) return;
+      if (!isPlayingRef.current) return;
+
+      // Debounce: Check if this key was pressed recently
+      const now = Date.now();
+      const lastPress = keyTimestamps.get(e.key) || 0;
+      if (now - lastPress < MIN_KEY_INTERVAL) {
+        return; // Skip this keypress
+      }
+      keyTimestamps.set(e.key, now);
 
       // Calculate energy boost with resistance zones
       // (Effort-Reward Balance: Breaking through thresholds feels like achievement)
@@ -157,7 +192,7 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPlaying]);
+  }, []); // Empty dependency array - listener stays constant
 
   return (
     <div className="relative w-screen h-screen bg-black overflow-hidden select-none">
